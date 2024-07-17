@@ -1,0 +1,67 @@
+services:
+
+  # database for everything
+
+  stsk-db:
+    image: mariadb:latest
+    build: ./stsk-db
+    environment:
+      MYSQL_ROOT_PASSWORD: changemepassword
+      MYSQL_DATABASE: stskdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./stsk-db/.data/mysql:/var/lib/mysql
+      # - ./stsk-db/.data/
+    networks:
+      - stsk-net
+
+  # CRM for business logic 
+
+  stsk-crm:
+    image: docker.io/bitnami/suitecrm:8
+    ports:
+      - "9001:8080"
+      - "443:8443"
+    environment:
+      - SUITECRM_DATABASE_HOST=stsk-db
+      - SUITECRM_DATABASE_PORT_NUMBER=3306
+      - SUITECRM_DATABASE_USER=root
+      - SUITECRM_DATABASE_NAME=stskdb
+      - SUITECRM_DATABASE_PASSWORD=changemepassword
+      # - ALLOW_EMPTY_PASSWORD=yes
+      - SUITECRM_USERNAME=stskuser
+      - SUITECRM_PASSWORD=stskpass
+    volumes:
+    - './stsk-db/.data/suitecrm_data:/bitnami/suitecrm:rw'
+    depends_on:
+      - stsk-db
+    networks:
+      - stsk-net
+  
+  # Stitch Sketch app main front-end + scanner 
+
+  stsk-web:
+    build: ./stsk-app
+    ports:
+      - "9000:8000"
+    depends_on:
+      - stsk-db
+    networks:
+      - stsk-net
+
+  # # DON'T DEPLOY THIS YET 
+  # # 3D VISUALIZATION CONTAINER ... EVERYTHING HERE IS VERY EXPERIMENTAL 
+
+  # stsk-3d-app:
+  #   build: ./stsk-3d-app
+  #   ports:
+  #     - "9001:80"
+  #   depends_on:
+  #     - stsk-db
+  #   networks:
+  #     - stsk-net
+
+networks:
+  stsk-net:
+    driver: bridge
