@@ -61,9 +61,9 @@ class AnalyticsPage(BasePage):
         super().__init__("Analytics")
         # Add analytics-specific controls here
 
-class ScanModelPage(BasePage):
+class ScanModelPage(Page):
     def __init__(self):
-        super().__init__("3D Scanning & Modeling")
+        super().__init__()
         self.controller = ScanModelController(self)
 
         self.gallery = ft.GridView(
@@ -73,16 +73,13 @@ class ScanModelPage(BasePage):
             child_aspect_ratio=1.0,
             spacing=10,
             run_spacing=10,
-            )
+        )
 
-        self.progress_display = ft.Column([
-            ft.ProgressBar(visible=False),
-            ft.Text()
-        ])
+        self.point_cloud_viewer = PointCloudViewer(width=800, height=600)
 
-        self.leftcolumn = ft.Column([
-            self.gallery,
-            self.progress_display,
+        self.content = Row([
+            Column([self.gallery], expand=1),
+            Column([self.point_cloud_viewer], expand=2)
         ])
 
     def did_mount(self):
@@ -90,30 +87,12 @@ class ScanModelPage(BasePage):
 
     def load_scans(self):
         self.scans = self.controller.load_scans()
-        print(f"scans: {self.scans}")
         self.gallery.controls.clear()
         for scan in self.scans:
-            scan_card = ScanCard(scan)
+            scan_card = ScanCard(scan, on_click=self.on_scan_selected)
             self.gallery.controls.append(scan_card)
         self.update()
-        
 
-
-        # self.controller = ScanModelController(self)
-        # self.file_picker = ft.FilePicker(on_result=self.controller.on_file_selected)
-        # self.upload_button = FilePickerButton(
-        #     "Select Video File", on_click=lambda _: self.file_picker.pick_files(allow_multiple=False))
-        # self.file_name = ft.Text("No file selected")
-        # self.forward_interval = ft.TextField(label="Forward Interval", input_filter=ft.NumbersOnlyInputFilter(), value="4")
-        # self.reverse_interval = ft.TextField(label="Reverse Interval", input_filter=ft.NumbersOnlyInputFilter(), value="3")
-        # self.process_button = ft.ElevatedButton("Process Video", on_click=self.controller.process_video)
-        # self.progress_display = ProgressDisplay()
-        # self.pointcloud_canvas = PointCloudCanvas(width=300, height=200)
-        # self.controlpanel = [
-        #     ft.Row([self.upload_button, self.file_name]),
-        #     self.file_picker,
-        #     self.process_button,
-        #     self.progress_display,]
-
-        # self.leftcolumn.controls = self.controlpanel
-        # self.rightcolumn.controls = [self.forward_interval, self.reverse_interval, self.pointcloud_canvas]
+    def on_scan_selected(self, scan):
+        # Assume scan has a 'file_path' attribute that points to the pointcloud directory
+        self.point_cloud_viewer.load_pointcloud(scan.file_path)

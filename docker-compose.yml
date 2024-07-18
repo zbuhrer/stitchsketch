@@ -50,17 +50,35 @@ services:
     networks:
       - stsk-net
 
-  # # DON'T DEPLOY THIS YET 
-  # # 3D VISUALIZATION CONTAINER ... EVERYTHING HERE IS VERY EXPERIMENTAL 
+  # Stitch Sketch 3D app using Potree
 
-  # stsk-3d-app:
-  #   build: ./stsk-3d-app
-  #   ports:
-  #     - "9001:80"
-  #   depends_on:
-  #     - stsk-db
-  #   networks:
-  #     - stsk-net
+  stsk-3d-app:
+    build: ./stsk-3d-app
+    ports:
+      - "9002:80"
+    depends_on:
+      - stsk-db
+    volumes: 
+      - ./stsk-3d-app/.pointcloud-data:/usr/share/nginx/html/data
+    networks:
+      - stsk-net
+
+  # dedicated pointcloud processing service 
+
+  stsk-processor:
+    build: 
+      context: ./stsk-processor
+    ports:
+      - 9003:80
+    volumes:
+      - ./stsk-3d-app/.pointcloud-data:/data
+    environment:
+      - DATABASE_URL=mysql://root:changemepassword@stsk-db:3306/stskdb
+    depends_on:
+      - stsk-db
+    networks:
+      - stsk-net
+
 
 networks:
   stsk-net:

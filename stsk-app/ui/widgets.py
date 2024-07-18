@@ -6,9 +6,10 @@ from models.job import Job
 
         
 class ScanCard(ft.Card):
-    def __init__(self, scan):
+    def __init__(self, scan, on_click):
         super().__init__()
         self.scan = scan
+        self.on_click = on_click
         
         if isinstance(self.scan, dict):
             self.scan_jobid = self.scan.get("job_id", "Unknown")
@@ -23,8 +24,12 @@ class ScanCard(ft.Card):
         self.content = ft.Column([
             ft.Text(value=f"Job ID: {self.scan_jobid}"),
             ft.Text(value=f"Scan ID: {self.scan_scanid}"),
-            ft.ElevatedButton(text="Process")
+            ft.ElevatedButton(text="View", on_click=self.on_button_click)
         ])
+
+    def on_button_click(self, e):
+        if self.on_click:
+            self.on_click(self.scan)
 
 
 
@@ -74,19 +79,24 @@ class ProgressDisplay(ft.Column):
         self.progress_text.value = f"{progress:.2f}% Complete"
         self.update()
 
-class PointCloudCanvas(ft.Container):
+class PointCloudViewer(ft.WebView):
     def __init__(self, width, height):
-        self.canvas = Canvas(width=width, height=height)
         super().__init__(
-            content=self.canvas,
-            border=ft.border.all(1, ft.colors.GREY_400),
-            border_radius=10,
-            padding=10
+            width=width,
+            height=height,
+            src="http://localhost:9001/examples/viewer.html"
         )
 
-    def paint_pointcloud(self, pointcloud_data):
-        # Implement pointcloud rendering logic here
-        pass
+    def load_pointcloud(self, pointcloud_name):
+        # Assume the pointcloud_name is the name of a directory in .pointcloud-data
+        js = f"""
+        Potree.loadSettingsFromURL();
+        Potree.loadPointCloud("/data/{pointcloud_name}/metadata.json", "{pointcloud_name}", e => {{
+            viewer.scene.addPointCloud(e.pointcloud);
+            viewer.fitToScreen();
+        }});
+        """
+        self.evaluate_javascript(js)
 
 class JobTable(ft.DataTable):
     def __init__(self, jobs: Job):

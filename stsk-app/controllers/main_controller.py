@@ -1,8 +1,6 @@
 # controllers/main_controller.py
 import flet as ft
 
-from models.job import Job
-
 from ui.pages import MainPage, PageController
 from ui.widgets import NewJobBtn, NavRailBtn, NavRail
 from ui.modals import NewJobModal

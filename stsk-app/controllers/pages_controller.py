@@ -1,6 +1,7 @@
 from ui.pages import DashboardPage, SettingsPage, JobDetailsPage, AnalyticsPage, ScanModelPage
 from ui.pages import BasePage
 
+
 class PageController:
     def __init__(self):
         self.pages = {
