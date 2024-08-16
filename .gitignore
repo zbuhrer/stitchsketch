@@ -166,3 +166,4 @@ models
 scans
 .DS_Store
 .data
+*_embeddings*
