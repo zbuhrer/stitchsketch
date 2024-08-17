@@ -167,5 +167,5 @@ scans
 .DS_Store
 .data
 *_embeddings*
-*_old*
+.old*
 .aider*
