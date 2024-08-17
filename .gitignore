@@ -168,3 +168,4 @@ scans
 .data
 *_embeddings*
 *_old*
+.aider*
