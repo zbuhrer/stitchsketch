@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+  src:
+    build: .
+    environment:
+      - API_GATEWAY_PORT=8080
+      - IMAGE_PROCESSING_PORT=8000
+      - RECONSTRUCTION_PORT=9000
+      - VISUALIZATION_PORT=7000
+
+  ui:
+    build: ./ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - src
