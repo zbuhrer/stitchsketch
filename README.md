@@ -6,7 +6,7 @@ StitchSketch is a digital platform for reupholstering furniture. It uses compute
 
 ## Diagram
 
-````mermaid
+```mermaid
 graph TD
     A[Client] --> B[API Gateway]
     B --> C[Image Processing Service]
@@ -28,8 +28,7 @@ graph TD
     M --> E
     M --> F
     M --> G
-    ```
-````
+```
 
 ## Getting Started
 
