@@ -1,5 +1,5 @@
 # Base image with Poetry installed
-FROM python:3.12 AS python-base
+FROM python:3.8 AS python-base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=off \
