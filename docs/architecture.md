@@ -16,7 +16,7 @@ graph TD
     B --> E[Upholstery Service]
     B --> F[Visualization Service]
     B --> G[User and Project Management Service]
-    
+
     C --> H[(Image Storage)]
     D --> I[(3D Model Storage)]
     E --> J[(Pattern Storage)]

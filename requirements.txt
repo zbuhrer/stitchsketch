@@ -1,7 +1,0 @@
-flask
-flask_cors
-flask_restful
-jwt
-requests
-opencv-python
-open3d
