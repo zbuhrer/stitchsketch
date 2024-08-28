@@ -1,11 +1,12 @@
-
 # StitchSketch
 
 ## Description
 
+StitchSketch uses a combination of computer vision, machine learning algorithms, and photogrammetry to capture usable 3D assets for immersive furniture upholstering, design, and marketing.
+
 ## Diagram
 
-```mermaid
+````mermaid
 graph TD
     A[Client] --> B[API Gateway]
     B --> C[Image Processing Service]
@@ -13,7 +14,7 @@ graph TD
     B --> E[Upholstery Service]
     B --> F[Visualization Service]
     B --> G[User and Project Management Service]
-    
+
     C --> H[(Image Storage)]
     D --> I[(3D Model Storage)]
     E --> J[(Pattern Storage)]
@@ -28,3 +29,4 @@ graph TD
     M --> F
     M --> G
     ```
+````
