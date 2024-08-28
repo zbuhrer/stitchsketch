@@ -1,10 +1,12 @@
 # StitchSketch
 
 ## Description
+------------------
 
-StitchSketch uses a combination of computer vision, machine learning algorithms, and photogrammetry to capture usable 3D assets for immersive furniture upholstering, design, and marketing.
+StitchSketch is a digital platform for reupholstering furniture. It uses computer vision and machine learning to provide users with accurate measurements, material estimates, and high-quality visualizations of their projects.
 
 ## Diagram
+------------------
 
 ````mermaid
 graph TD
@@ -30,3 +32,8 @@ graph TD
     M --> G
     ```
 ````
+
+## Getting Started
+------------------
+
+To build the project, run `docker-compose up --build` in your terminal. This will create a containerized environment for the StitchSketch platform.
