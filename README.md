@@ -30,6 +30,15 @@ graph TD
     M --> G
 ```
 
+## **References**
+
+* [API Gateway](docs/api_gateway.md)
+* [Image Processing Service](docs/image_processing_service.md)
+* [3D Reconstruction Service](docs/reconstruction_service.md)
+* [Upholstery Service](docs/upholstery_service.md)
+* [Visualization Service](docs/visualization_service.md)
+* [User and Project Management Service](docs/user_project_service.md)
+
 ## Getting Started
 
 To build the project, run `docker-compose up --build` in your terminal. This will create a containerized environment for the StitchSketch platform.
