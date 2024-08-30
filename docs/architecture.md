@@ -1,12 +1,12 @@
 # StitchSketch Architecture
 
-## Overview
-
 StitchSketch is an open-source photogrammetry solution designed specifically for upholstery shops. It aims to democratize access to 3D scanning by providing a cost-effective alternative to expensive laser-based 3D scanning systems.
 
-## System Architecture
+## **System Architecture**
 
-StitchSketch follows a microservices architecture, with each service responsible for a specific aspect of the photogrammetry and upholstery calculation process.
+StitchSketch follows a microservices pattern, with each service responsible for a specific aspect of the photogrammetry and upholstery calculation process.
+
+### Diagram
 
 ```mermaid
 graph TD
@@ -24,7 +24,7 @@ graph TD
     G --> L[(User/Project DB)]
 ```
 
-## Key Components
+### Key Components
 
 1. [API Gateway](api_gateway.md): Serves as the entry point for all client requests.
 2. [Image Processing Service](image_processing_service.md): Handles image ingestion and preprocessing.
@@ -44,9 +44,11 @@ graph TD
 
 ## Technology Stack
 
-- Backend: Python (Flask for API Gateway, custom services for other components)
-- Frontend: Web-based (React or Vue.js with Three.js for 3D visualization)
-- Databases: PostgreSQL for structured data, MongoDB for semi-structured data
-- Storage: MinIO for raw images and large files
+- [ ] TODO: Tech Stack Discovery & Decisions
+
+- Backend: *Python (varied API hosts for specialized Python microservices)*
+- Frontend: *Web-based (Python preferred)*
+- Databases: *Structured, Unstructured, and Vectorized/Tokenizable database types. Needs RAG support. NoSQL for small local things?*
+- Storage: *MinIO or something similar for raw images and large files*
 
 For detailed information on each service, please refer to the individual service documentation linked above.

@@ -8,10 +8,8 @@ import os
 load_dotenv()
 
 services = [
-    {"name": "API Gateway", "command": ["python", "src/api_gateway.py"], "url": f"http://localhost:{os.getenv('API_GATEWAY_PORT')}/health"},
-    {"name": "Image Processing", "command": ["python", "src/image_processing_service.py"], "url": f"http://localhost:{os.getenv('IMAGE_PROCESSING_PORT')}/health"},
-    {"name": "Reconstruction", "command": ["python", "src/reconstruction_service.py"], "url": f"http://localhost:{os.getenv('RECONSTRUCTION_PORT')}/health"},
-    {"name": "Visualization", "command": ["python", "src/visualization_service.py"], "url": f"http://localhost:{os.getenv('VISUALIZATION_PORT')}/health"},
+    {"name": "API Gateway", "command": ["python", "src/api_gateway.py"], "url": f"http://localhost:5005/health"},
+    {"name": "UI", "command": ["flet run --web --port 3005 ui.py"], "url": ""},
 ]
 
 def start_service(service):
@@ -38,14 +36,13 @@ async def main():
     with ThreadPoolExecutor() as executor:
         # Start all services
         processes = list(executor.map(start_service, services))
-        
-        # Check health of all services
-        results = list(executor.map(check_service_health, services))
 
-    if all(results):
-        print("All services are up and running.")
-    else:
-        print("Some services failed to start. Check the logs for more information.")
+        # Check health of API Gateway service only
+        results = [check_service_health(services[0])]
+        if len(results) > 0 and all(results):
+            print("API Gateway is up and running.")
+        else:
+            print("Failed to start API Gateway.")
 
     # Keep the script running
     try:
