@@ -2,7 +2,7 @@
 
 StitchSketch is an open-source photogrammetry solution designed specifically for upholstery shops. It aims to democratize access to 3D scanning by providing a cost-effective alternative to expensive laser-based 3D scanning systems.
 
-## **System Architecture**
+## **Overview**
 
 StitchSketch follows a microservices pattern, with each service responsible for a specific aspect of the photogrammetry and upholstery calculation process.
 

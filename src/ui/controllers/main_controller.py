@@ -1,17 +1,14 @@
-# controllers/main_controller.py
 import flet as ft
-
 from models.job import Job
-
 from ui.pages import MainPage, PageController
 from ui.widgets import NewJobBtn, NavRailBtn, NavRail
 from ui.modals import NewJobModal
-    
+
 
 class MainController:
     def __init__(self, page: ft.Page):
         self.page = page
-        
+
         self.page.title = "3D Mesh CRM System"
         self.page.theme = ft.Theme(color_scheme_seed="red")
         self.page_controller = PageController()
@@ -38,7 +35,7 @@ class MainController:
         print(f"Opening {self.njm.semantics_label}")
         self.njm.modal = True
         self.page.update()
-        return 
+        return
 
     def create_nav_rail(self):
         def on_nav_change(e):
@@ -58,14 +55,14 @@ class MainController:
             {"label": "SettingsPage", "icon": ft.icons.SETTINGS_OUTLINED, "selected_icon": ft.icons.SETTINGS},
             {"label": "AnalyticsPage", "icon": ft.icons.ANALYTICS_OUTLINED, "selected_icon": ft.icons.ANALYTICS},
             ]
-        
+
         destinationlist = []
         # Create NavRail destinations
         for dest in self.destinationdict:
             navrail_btn = ft.NavigationRailDestination(label=dest["label"], icon=dest["icon"], selected_icon=dest["selected_icon"])
             print(f"Created navrail destination: {navrail_btn.label} with icon {navrail_btn.icon}")
             destinationlist.append(navrail_btn)
-        
+
         nav_rail.destinations = destinationlist
         nav_rail.on_change = on_nav_change
         nav_rail.selected_index = 0
