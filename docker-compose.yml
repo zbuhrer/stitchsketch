@@ -1,7 +1,7 @@
 services:
   ui:
     build:
-      context: ./src
+      context: ./src/ui
       dockerfile: ui.Dockerfile
     restart: always
     ports:
@@ -9,7 +9,7 @@ services:
 
   api_gateway:
     build:
-      context: ./src
+      context: ./src/api_gateway
       dockerfile: api_gateway.Dockerfile
     restart: always
     ports:
