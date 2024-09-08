@@ -1,16 +1,46 @@
 services:
   ui:
+    container_name: "StitchSketch-UI"
     build:
       context: ./src/ui
       dockerfile: ui.Dockerfile
-    restart: always
     ports:
-      - "8009:8009"
+      - "8009:8000"
 
   api_gateway:
+    container_name: "StitchSketch-API"
     build:
       context: ./src/api_gateway
       dockerfile: api_gateway.Dockerfile
-    restart: always
     ports:
       - "8089:8089"
+
+  keycloak:
+    container_name: "StitchSketch-IAM"
+    build:
+      context: ./src/keycloak
+      dockerfile: keycloak.Dockerfile
+    environment:
+      - KEYCLOAK_USER=${KEYCLOAK_ADMIN_USER}
+      - KEYCLOAK_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_DB=${KC_DB:-postgres}
+      - KC_DB_URL=${KC_DB_URL:-jdbc:postgresql://postgres:5432}
+      - KC_DB_USERNAME=${KC_DB_USERNAME:-keycloak}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD:-changeme}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak-users.json:/opt/keycloak/conf/keycloak-users.json
+      - ./keycloak-realm.json:/opt/keycloak/conf/keycloak-realm.json
+
+  postgres:
+    container_name: "StitchSketch-PG"
+    image: postgres:latest
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
