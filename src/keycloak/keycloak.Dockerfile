@@ -5,8 +5,7 @@ ENV KC_HEALTH_ENABLED=true
 ENV KC_METRICS_ENABLED=true
 
 # Configure a database vendor with a default value
-ARG KC_DB=postgres
-ENV KC_DB=${KC_DB}
+ENV KC_DB=postgres
 
 WORKDIR /opt/keycloak
 # for demonstration purposes only, please make sure to use proper certificates in production instead
@@ -18,8 +17,9 @@ COPY --from=builder /opt/keycloak/ /opt/keycloak/
 
 # change these values to point to a running postgres instance
 ENV KC_DB=${KC_DB}
-ENV KC_DB_URL=${KC_DB_URL}
-ENV KC_DB_USERNAME=${KC_DB_USERNAME}
-ENV KC_DB_PASSWORD=${KC_DB_PASSWORD}
+ENV KC_DB_URL=${POSTGRES_KEYCLOAK_URL}
+ENV KC_DB_USERNAME=${KEYCLOAK_ADMIN_USER}
+ENV KC_DB_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
 ENV KC_HOSTNAME=localhost
-ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh", "start-dev"]
