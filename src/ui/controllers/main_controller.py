@@ -2,7 +2,7 @@ import flet as ft
 from models.job import Job
 from ui.pages import MainPage, PageController
 from ui.widgets import NewJobBtn, NavRailBtn, NavRail
-from ui.modals import NewJobModal
+from ui.modals import FormModal
 
 
 class MainController:
@@ -14,7 +14,7 @@ class MainController:
         self.page_controller = PageController()
         self.main_page = MainPage(self.page_controller)
         self.njb = NewJobBtn()
-        self.njm = NewJobModal()
+        self.newjob_modal = FormModal()
         self.setup()
 
     def setup(self):
@@ -29,12 +29,15 @@ class MainController:
                 expand=True,
             )
         )
+        self.njb.on_click = self.open_newjob
 
     def open_newjob(self, e):
-        self.njm = NewJobModal()
-        print(f"Opening {self.njm.semantics_label}")
-        self.njm.modal = True
-        self.page.update()
+        newjob_modal = self.newjob_modal
+        newjob_modal.semantics_label = "new job form pop-up modal from class local"
+        newjob_modal.modal = True
+        newjob_modal.open = True
+
+        print(f"{newjob_modal.semantics_label}: {newjob_modal.modal}")
         return
 
     def create_nav_rail(self):
@@ -42,8 +45,6 @@ class MainController:
             selected_index = e.control.selected_index
             page_name = ["dashboard", "job_details", "scan_model", "settings", "analytics"][selected_index]
             self.main_page.navigate_to(page_name)
-
-
 
         nav_rail = NavRail(
                 selected_index=0,
@@ -67,6 +68,5 @@ class MainController:
         nav_rail.on_change = on_nav_change
         nav_rail.selected_index = 0
         nav_rail.leading = self.njb
-        self.njb.on_click = self.open_newjob
 
         return nav_rail

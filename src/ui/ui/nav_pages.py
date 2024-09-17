@@ -1,6 +1,10 @@
 # ./ui/page_classes.py
+import random
 import flet as ft
+
 from .widgets import ScanCard
+from models.database import db_session
+from models.job import Job
 
 
 class BasePage(ft.Column):
@@ -28,22 +32,33 @@ class BasePage(ft.Column):
 class DashboardPage(BasePage):
     def __init__(self):
         super().__init__("Dashboard")
-        # Add dashboard-specific controls here
+        self.job_grid = ft.GridView(
+            runs_count=3,
+            horizontal=True,
+            expand=True,
+            run_spacing=5,
+        )
+        # self.leftcolumn = ft.Column([self.job_grid])
+        self.controls = [self.job_grid]
+        self._populate_grid_view()
 
-        self.rightcolumn.controls = []
+    def _populate_grid_view(self):
+        print(f"Populating job grid.")
 
-    def _buildtable(self):
-        self.jobtable = ft.DataTable()
-        self.jobtable.columns = [
-        ft.DataColumn(label=ft.Text("ID")),
-            ft.DataColumn(label=ft.Text("Name")),
-            ft.DataColumn(label=ft.Text("Date Entered")),
-            ft.DataColumn(label=ft.Text("Date Modified")),
-            ft.DataColumn(label=ft.Text("Modified By")),
-            ft.DataColumn(label=ft.Text("Created By")),
-            ]
-        return self.jobtable
+        jobs = db_session.query(Job).all()
 
+        for job in jobs:
+            job_container = ft.Container(content=ft.Column(
+                [
+                    ft.Text(f"{job.name}", weight=ft.FontWeight.BOLD),
+                    ft.Text(f"Status: {job.status}"),
+                    ft.Text(f"Created By: {job.created_by}"),
+                    ft.Text(f"Modified On: {job.modified_on}")
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+            ))
+            print(f"Job {job.id}")
+            self.job_grid.controls.append(job_container)
 
 class SettingsPage(BasePage):
     def __init__(self):

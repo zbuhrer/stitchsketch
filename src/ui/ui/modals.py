@@ -2,11 +2,12 @@ import flet as ft
 from models.job import Job
 
 
-class NewJobModal(ft.AlertDialog):
+class FormModal(ft.AlertDialog):
     def __init__(self):
         super().__init__()
-        
-        # build all of our form fields 
+        print(f"NewJobModal initialized")
+
+        # build all of our form fields
         self.semantics_label = "new job form pop-up modal"
         self.job_name = ft.TextField(label="Job Name", hint_text="New Job", value="")
         self.job_description = ft.TextField(label="Job Description", hint_text="New Job Description", multiline=True)
@@ -15,10 +16,10 @@ class NewJobModal(ft.AlertDialog):
         self.customer_address = ft.TextField(label="Customer Address", hint_text="New Customer Address", multiline=True)
         self.title = ft.Text("New Job")
 
-        # not open by default obvs 
+        # not open by default obvs
         # self.open=False
-        
-        # structure the content block inside the modal 
+
+        # structure the content block inside the modal
         self.content = ft.Column([
             self.job_name,
             self.job_description,
@@ -27,8 +28,8 @@ class NewJobModal(ft.AlertDialog):
             self.customer_name,
             self.customer_address,
         ])
-        
-        # actionable doodads at the bottom of the modal 
+
+        # actionable doodads at the bottom of the modal
         self.actions = [
             ft.ElevatedButton("Add", on_click=lambda e: print("Modal dialog dismissed!")),
             ft.ElevatedButton("Cancel", on_click=lambda e: print("Modal dialog dismissed!")),
@@ -37,9 +38,9 @@ class NewJobModal(ft.AlertDialog):
     async def create_job(self):
 
         import datetime
-              
-        # make a job object via job model class 
-        
+
+        # make a job object via job model class
+
         job = Job(
             id='00000id',
             name=f"{self.job_name.value}",
@@ -51,4 +52,4 @@ class NewJobModal(ft.AlertDialog):
             )
         print("Job Created:")
         print(f"{job}")
-        return job 
+        return job
