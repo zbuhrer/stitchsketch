@@ -1,3 +1,6 @@
+import os
+import uuid
+
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime
@@ -24,3 +27,16 @@ class Job(Base):
         """
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+    def create_job(self, name, created_by):
+        job_id = str(uuid.uuid4())
+        new_job = Job(id=job_id, name=name, created_by=created_by)
+        db_session.add(new_job)
+        db_session.commit()
+
+        # Create input and output directories
+        media_dir = "/app/ui/media"  # Update this path if needed
+        os.makedirs(f"{media_dir}/{job_id}/input", exist_ok=True)
+        os.makedirs(f"{media_dir}/{job_id}/output", exist_ok=True)
+
+        return new_job

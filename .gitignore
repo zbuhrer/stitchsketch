@@ -171,3 +171,6 @@ scans
 *venv*
 requirements.txt
 .postgres_data
+
+
+/src/ui/media/.*

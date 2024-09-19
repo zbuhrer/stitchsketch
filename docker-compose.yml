@@ -6,6 +6,8 @@ services:
     build:
       context: ./src/ui
       dockerfile: ui.Dockerfile
+    volumes:
+      - ./media:/app/ui/media
     env_file: .env
 
   api_gateway:

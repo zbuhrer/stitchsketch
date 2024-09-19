@@ -13,8 +13,6 @@ class MainController:
         self.page.theme = ft.Theme(color_scheme_seed="red")
         self.page_controller = PageController()
         self.main_page = MainPage(self.page_controller)
-        self.njb = NewJobBtn()
-        self.newjob_modal = FormModal()
         self.setup()
 
     def setup(self):
@@ -29,16 +27,6 @@ class MainController:
                 expand=True,
             )
         )
-        self.njb.on_click = self.open_newjob
-
-    def open_newjob(self, e):
-        newjob_modal = self.newjob_modal
-        newjob_modal.semantics_label = "new job form pop-up modal from class local"
-        newjob_modal.modal = True
-        newjob_modal.open = True
-
-        print(f"{newjob_modal.semantics_label}: {newjob_modal.modal}")
-        return
 
     def create_nav_rail(self):
         def on_nav_change(e):
@@ -67,6 +55,5 @@ class MainController:
         nav_rail.destinations = destinationlist
         nav_rail.on_change = on_nav_change
         nav_rail.selected_index = 0
-        nav_rail.leading = self.njb
 
         return nav_rail

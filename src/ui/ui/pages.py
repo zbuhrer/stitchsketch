@@ -1,7 +1,7 @@
-# ./ui/pages.py
 import flet as ft
 from .nav_pages import DashboardPage, SettingsPage, JobDetailsPage, AnalyticsPage, ScanModelPage
 from .nav_pages import BasePage
+
 
 class PageController:
     def __init__(self):

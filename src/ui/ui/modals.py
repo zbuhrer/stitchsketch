@@ -3,9 +3,10 @@ from models.job import Job
 
 
 class FormModal(ft.AlertDialog):
-    def __init__(self):
+    def __init__(self, modal = False):
         super().__init__()
         print(f"NewJobModal initialized")
+        self.modal = modal
 
         # build all of our form fields
         self.semantics_label = "new job form pop-up modal"
@@ -15,9 +16,6 @@ class FormModal(ft.AlertDialog):
         self.customer_name = ft.TextField(label="Customer Name", hint_text="New Customer Name")
         self.customer_address = ft.TextField(label="Customer Address", hint_text="New Customer Address", multiline=True)
         self.title = ft.Text("New Job")
-
-        # not open by default obvs
-        # self.open=False
 
         # structure the content block inside the modal
         self.content = ft.Column([
@@ -34,22 +32,3 @@ class FormModal(ft.AlertDialog):
             ft.ElevatedButton("Add", on_click=lambda e: print("Modal dialog dismissed!")),
             ft.ElevatedButton("Cancel", on_click=lambda e: print("Modal dialog dismissed!")),
         ]
-
-    async def create_job(self):
-
-        import datetime
-
-        # make a job object via job model class
-
-        job = Job(
-            id='00000id',
-            name=f"{self.job_name.value}",
-            date_entered=datetime.date.today(),
-            date_modified=datetime.date.today(),
-            modified_user_id='username',
-            created_by='username',
-            description=f"{self.job_description.value}"
-            )
-        print("Job Created:")
-        print(f"{job}")
-        return job

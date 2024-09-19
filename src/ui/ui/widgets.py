@@ -4,12 +4,25 @@ from flet.canvas import Canvas
 
 from models.job import Job
 
-        
+class JobCard(ft.Card):
+    def __init__(self, job: Job):
+        super().__init__(
+            content=ft.Column(
+                [
+                    ft.Text(f"{job.name}", weight=ft.FontWeight.BOLD),
+                    ft.Text(f"Status: {job.status}"),
+                    ft.Text(f"Created By: {job.created_by}"),
+                    ft.Text(f"Modified On: {job.modified_on}")
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+            )
+        )
+
 class ScanCard(ft.Card):
     def __init__(self, scan):
         super().__init__()
         self.scan = scan
-        
+
         if isinstance(self.scan, dict):
             self.scan_jobid = self.scan.get("job_id", "Unknown")
             self.scan_scanid = self.scan.get("scan_id", "Unknown")
@@ -28,15 +41,12 @@ class ScanCard(ft.Card):
 
 
 
+class NewJobBtn(ft.ElevatedButton):
+    def __init__(self, modal: ft.AlertDialog):
+        super().__init__("New Job")
+        self.modal = modal
 
-class LiveCameraFeed(ft.WebView):
-    def __init__(self, url):
-        super().__init__(url=url)
-        self._canvas = Canvas()
 
-class NewJobBtn(ft.FloatingActionButton):
-    def __init__(self):
-        super().__init__(icon=ft.icons.ADD, text="Job")
 
 class NavRailBtn(ft.NavigationRailDestination):
     def __init__(self, label, icon, selected_icon):
@@ -44,7 +54,7 @@ class NavRailBtn(ft.NavigationRailDestination):
         # self.label=None
         # self.icon=None
         # self.selected_icon=None
-        return 
+        return
 
 class NavRail(ft.NavigationRail):
     def __init__(self, selected_index, on_change):
@@ -56,11 +66,7 @@ class NavRail(ft.NavigationRail):
             group_alignment=-0.9,
             )
         print(f"{self.selected_index}, {self.label_type}, {self.extended}, {self.on_change}")
-        return 
-
-class FilePickerButton(ft.ElevatedButton):
-    def __init__(self, text, on_click):
-        super().__init__(text=text, on_click=on_click)
+        return
 
 class ProgressDisplay(ft.Column):
     def __init__(self):
@@ -88,28 +94,7 @@ class PointCloudCanvas(ft.Container):
         # Implement pointcloud rendering logic here
         pass
 
-class JobTable(ft.DataTable):
-    def __init__(self, jobs: Job):
-        super().__init__()
-        self.columns = [
-            ft.DataColumn(label=ft.Text("ID")),
-            ft.DataColumn(label=ft.Text("Name")),
-            ft.DataColumn(label=ft.Text("Date Entered")),
-            ft.DataColumn(label=ft.Text("Date Modified")),
-            ft.DataColumn(label=ft.Text("Modified By")),
-            ft.DataColumn(label=ft.Text("Created By")),
-        ]
-        self.rowcache = []
-        self._buildtable(jobs)
-
-    def _buildtable(self, jobs):
-        for job in jobs:
-            self.rowcache.append([
-                ft.DataRow([ft.Text(job.id)]),
-                ft.DataRow([ft.Text(job.name)]),
-                ft.DataRow([ft.Text(job.date_entered.strftime("%Y-%m-%d"))]),
-                ft.DataRow([ft.Text(job.date_modified.strftime("%Y-%m-%d"))]),
-                ft.DataRow([ft.Text(job.modified_user_id)]),
-                ft.DataRow([ft.Text(job.created_by)])
-            ])
-        self.rows = self.rowcache
+class LiveCameraFeed(ft.WebView):
+            def __init__(self, url):
+                super().__init__(url=url)
+                self._canvas = Canvas()
