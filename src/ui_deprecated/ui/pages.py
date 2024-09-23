@@ -1,6 +1,7 @@
 import flet as ft
 from .nav_pages import DashboardPage, SettingsPage, JobDetailsPage, AnalyticsPage, ScanModelPage
 from .nav_pages import BasePage
+from .modals import JobModal
 
 
 class PageController:

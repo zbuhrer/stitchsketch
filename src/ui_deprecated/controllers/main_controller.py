@@ -2,21 +2,21 @@ import flet as ft
 from models.job import Job
 from ui.pages import MainPage, PageController
 from ui.widgets import NewJobBtn, NavRailBtn, NavRail
-from ui.modals import FormModal
+from ui.modals import JobModal
 
 
 class MainController:
     def __init__(self, page: ft.Page):
         self.page = page
-
-        self.page.title = "3D Mesh CRM System"
+        self.page.title = "StitchSketch CRM System"
         self.page.theme = ft.Theme(color_scheme_seed="red")
         self.page_controller = PageController()
         self.main_page = MainPage(self.page_controller)
-        self.setup()
 
-    def setup(self):
-        nav_rail = self.create_nav_rail()
+        self.build_navrail()
+
+    def build_navrail(self):
+        nav_rail = self.nav_rail_config()
         self.page.add(
             ft.Row(
                 [
@@ -28,7 +28,7 @@ class MainController:
             )
         )
 
-    def create_nav_rail(self):
+    def nav_rail_config(self):
         def on_nav_change(e):
             selected_index = e.control.selected_index
             page_name = ["dashboard", "job_details", "scan_model", "settings", "analytics"][selected_index]
@@ -55,5 +55,7 @@ class MainController:
         nav_rail.destinations = destinationlist
         nav_rail.on_change = on_nav_change
         nav_rail.selected_index = 0
+
+
 
         return nav_rail

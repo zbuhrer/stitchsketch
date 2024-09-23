@@ -42,9 +42,8 @@ class ScanCard(ft.Card):
 
 
 class NewJobBtn(ft.ElevatedButton):
-    def __init__(self, modal: ft.AlertDialog):
-        super().__init__("New Job")
-        self.modal = modal
+    def __init__(self):
+        super().__init__(icon=ft.icons.ADD, text="New Job")
 
 
 
@@ -65,6 +64,7 @@ class NavRail(ft.NavigationRail):
             min_extended_width=400,
             group_alignment=-0.9,
             )
+        self.leading = None
         print(f"{self.selected_index}, {self.label_type}, {self.extended}, {self.on_change}")
         return
 

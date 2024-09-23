@@ -2,8 +2,8 @@
 import random
 import flet as ft
 
-from ui.modals import FormModal
-from ui.widgets import NewJobBtn, ScanCard, JobCard
+from ui.modals import JobModal
+from ui.widgets import JobCard, NewJobBtn
 
 from models.database import db_session
 from models.job import Job
@@ -32,8 +32,10 @@ class BasePage(ft.Column):
         ]
 
 class DashboardPage(BasePage):
-    def __init__(self, modal = False):
+    def __init__(self):
         super().__init__("Job Dashboard")
+        self.create_job_button = ft.ElevatedButton(text="New Job")
+        self.newjobmodal = JobModal(self)
 
         self.job_grid = ft.GridView(
             runs_count=3,
@@ -41,17 +43,27 @@ class DashboardPage(BasePage):
             expand=True,
             run_spacing=5,
         )
-        self.leftcolumn.controls=[self.job_grid]
-        self._populate_grid_view()
 
-    def _populate_grid_view(self):
+        self.leftcolumn.controls=[self.job_grid]
+        self.leftcolumn.expand=True
+        self.rightcolumn.controls=[self.create_job_button]
+
+        self._build_columns()
+
+    def _build_columns(self):
         print(f"Populating job grid.")
+        self.create_job_button.on_click = self.open_modal
+        print(f"Create Job Button on_click method: {self.create_job_button.on_click}")
 
         jobs = db_session.query(Job).all()
 
         for job in jobs:
             print(f"Job {job.id}")
             self.job_grid.controls.append(JobCard(job))
+
+    def open_modal(self):
+        self.newjobmodal.open = True
+        self.update_async
 
 class SettingsPage(BasePage):
     def __init__(self):
