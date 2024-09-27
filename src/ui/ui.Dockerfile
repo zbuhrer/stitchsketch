@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r ui.requirements.txt
 
 EXPOSE 8009
 
-CMD ["python", "main.py"]
+CMD ["flet", "run", "--web", "main.py"]

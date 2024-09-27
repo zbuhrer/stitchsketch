@@ -1,33 +1,32 @@
 import flet as ft
-from modals import JobModal
+
 from widgets import JobCard, NewJobBtn
-from page_classes import BasePage, DashboardPage, SettingsPage, JobDetailsPage, AnalyticsPage, ScanModelPage
 
-class PageController:
+from models.job import Job
+from models.database import db_session
+
+class DashboardPage(ft.Column):
     def __init__(self):
-        self.main_page = MainPage(self)
-
-    def get_page(self, page_name: str) -> ft.Page:
-        if page_name == "dashboard":
-            return DashboardPage()
-        elif page_name == "settings":
-            return SettingsPage()
-        elif page_name == "job_details":
-            return JobDetailsPage()
-        elif page_name == "analytics":
-            return AnalyticsPage()
-        elif page_name == "scan_model":
-            return ScanModelPage()
-        else:
-            raise ValueError(f"Page '{page_name}' not found")
-
-class MainPage(ft.Column):
-    def __init__(self, page_controller: PageController):
         super().__init__()
-        self.page_controller = page_controller
-        self.expand = True
-        self.controls = [self.page_controller.get_page("dashboard")]
+        print(f"initializing DashBoardPage")
+        self.create_job_button = ft.ElevatedButton(text="New Job", on_click=lambda _: print(f"New Job Button Clicked"))
+        self.job_grid = ft.Column()
 
-    def navigate_to(self, page_name: str):
-        self.controls = [self.page_controller.get_page(page_name)]
-        self.update()
+        self.controls = [self.job_grid]
+        self.expand = True
+
+    def load_jobs(self):
+        print(f"Loading jobs")
+        jobs = db_session.query(Job).all()
+        x = 0
+        for job in jobs:
+            print(f"Job: {job.id} - {job.name}, {job.status}")
+            x += 1
+            self.job_grid.controls.append(JobCard(job))
+        print(f"Total job count: {x}")
+
+
+class SettingsPage(ft.Column):
+    def __init__(self):
+        print(f"initializing SettingsPage")
+        super().__init__()

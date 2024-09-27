@@ -1,27 +1,72 @@
 import flet as ft
-from nav_pages import PageController, MainPage
+from modals import JobModal
+from nav_pages import DashboardPage, SettingsPage
 
+def __init__(self):
+
+    return
 
 def main(page: ft.Page):
-    page.title = "Job Management App"
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.title = "StitchSketch"
 
-    # Initialize the Page Controller and Main Page
-    controller = PageController()
-    main_page = controller.main_page
+    def route_change(route):
+        print(f"Setting route: {page.route}")
+        page.views.clear()
+        if page.route == "/dashboard":
+            dashboard_page = DashboardPage()
+            dashboard_page.load_jobs()
+            job_modal = JobModal(dashboard_page)
+            page.views.append(
+                ft.View(
+                    "/dashboard",
+                    [
+                        ft.Row(vertical_alignment=ft.CrossAxisAlignment.START,
+                            controls=[
+                                ft.FloatingActionButton(tooltip="Refresh",
+                                    icon=ft.icons.REFRESH,
+                                    on_click=lambda _: dashboard_page.load_jobs()),
+                                dashboard_page
 
-    # Add controls to the main page as needed
-    main_page.controls.extend([
-        ft.ElevatedButton("Go to Dashboard", on_click=lambda _: controller.main_page.navigate_to("dashboard")),
-        ft.ElevatedButton("Go to Settings", on_click=lambda _: controller.main_page.navigate_to("settings")),
-        ft.ElevatedButton("Go to Job Details", on_click=lambda _: controller.main_page.navigate_to("job_details")),
-        ft.ElevatedButton("Go to Analytics", on_click=lambda _: controller.main_page.navigate_to("analytics")),
-        ft.ElevatedButton("Go to Scan Model", on_click=lambda _: controller.main_page.navigate_to("scan_model")),
-    ])
+                        ]),
+                        ft.FloatingActionButton(tooltip="New Job",icon=ft.icons.ADD_TASK,on_click=lambda e: open_modal(job_modal))
+                    ]))
+            page.update()
 
-    # Display the main page
-    page.add(main_page)
+        elif page.route == "/settings":
+            page.views.append(
+                ft.View(
+                    "/settings",
+                    [ft.Text("Settings Page"),
+                        ft.FloatingActionButton(tooltip="Dashboard",icon=ft.icons.DASHBOARD, on_click=lambda _:page.go("/dashboard"))],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    vertical_alignment=ft.MainAxisAlignment.CENTER,
+                )
+            )
 
-# Run the app
-ft.app(target=main)
+        page.update()
+
+    def view_pop(view):
+        page.views.pop()
+        top_view = page.views[-1]
+        page.go(top_view.route)
+
+    def open_modal(modal):
+        print(f"{modal.semantics_label} modal: opened")
+        page.overlay.append(modal)
+        modal.open = True
+        page.update()
+
+    def close_modal(modal):
+        print(f"{modal} modal: closed")
+        modal.open = False
+        page.update()
+
+    page.on_route_change = route_change
+    page.on_view_pop = view_pop
+
+    page.go("/dashboard")
+
+
+ft.app(main, view=ft.AppView.WEB_BROWSER, port=8009)
+
+# ft.app(target=main, view=ft.AppView.FLET_APP, port=8009)
