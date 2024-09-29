@@ -11,3 +11,9 @@ SessionFactory = scoped_session(sessionmaker(bind=engine))
 
 # Make db_session an alias for SessionFactory
 db_session = SessionFactory()
+
+def get_db():
+    try:
+        yield db_session
+    finally:
+        db_session.close()

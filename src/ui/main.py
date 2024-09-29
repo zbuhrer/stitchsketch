@@ -1,42 +1,74 @@
 import flet as ft
+
+from fastapi import Query, Path, Depends
+from flet.fastapi.flet_fastapi import List, FastAPI
+from sqlalchemy.orm import Session
+
+from models.database import db_session, get_db
+from models.job import Job
+
 from modals import JobModal
 from nav_pages import DashboardPage, SettingsPage
+from widgets import CustomAppBar
+
 
 def __init__(self):
+    route = "/dashboard"
+    pass
 
-    return
+app = FastAPI()
+
+@app.get("/jobs/", response_model=None)
+def get_jobs(db: Session = Depends(get_db)):
+    job = Job(id=1, description="example description")
+    return job
+
+@app.post("/jobs/", response_model=None)
+def new_job(name: str, description: str = Query(..., min_length=3), db: Session=Depends(get_db)):
+    new_job = Job.create_job(name, description)
+    return new_job
+
+@app.get("/search/jobs/", response_model=None)
+    # List[Job])
+async def search_jobs(query: str, db: Session = Depends(get_db)):
+    # job searching!
+    jobs = db.query(Job).filter(Job.description.contains(query)).all()
+    return jobs
 
 def main(page: ft.Page):
     page.title = "StitchSketch"
+    dashboard_page = DashboardPage(app)
+    dashboard_page.load_jobs(app)
+    job_modal = JobModal(dashboard_page, app)
+
+    page.window_frameless = True
 
     def route_change(route):
         print(f"Setting route: {page.route}")
         page.views.clear()
+        page.appbar = CustomAppBar()
+        page.appbar.newtask_button.on_click = lambda e: open_modal(job_modal)
+        page.appbar.dashboard_navoption.on_click = lambda e: on_nav_change("/dashboard")
+        page.appbar.settings_navoption.on_click = lambda e: on_nav_change("/settings")
         if page.route == "/dashboard":
-            dashboard_page = DashboardPage()
-            dashboard_page.load_jobs()
-            job_modal = JobModal(dashboard_page)
             page.views.append(
                 ft.View(
                     "/dashboard",
                     [
-                        ft.Row(vertical_alignment=ft.CrossAxisAlignment.START,
-                            controls=[
-                                ft.FloatingActionButton(tooltip="Refresh",
-                                    icon=ft.icons.REFRESH,
-                                    on_click=lambda _: dashboard_page.load_jobs()),
-                                dashboard_page
-
-                        ]),
-                        ft.FloatingActionButton(tooltip="New Job",icon=ft.icons.ADD_TASK,on_click=lambda e: open_modal(job_modal))
-                    ]))
+                        page.appbar,
+                        dashboard_page,
+                    ]
+                )
+            )
             page.update()
 
         elif page.route == "/settings":
             page.views.append(
                 ft.View(
                     "/settings",
-                    [ft.Text("Settings Page"),
+                    [
+                        page.appbar,
+                        ft.Text("Settings Page"),
                         ft.FloatingActionButton(tooltip="Dashboard",icon=ft.icons.DASHBOARD, on_click=lambda _:page.go("/dashboard"))],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     vertical_alignment=ft.MainAxisAlignment.CENTER,
@@ -44,6 +76,10 @@ def main(page: ft.Page):
             )
 
         page.update()
+
+    def on_nav_change(new_route):
+        print(f"Navigating: {new_route}")
+        page.go(new_route)
 
     def view_pop(view):
         page.views.pop()
@@ -67,6 +103,5 @@ def main(page: ft.Page):
     page.go("/dashboard")
 
 
-ft.app(main, view=ft.AppView.WEB_BROWSER, port=8009)
 
-# ft.app(target=main, view=ft.AppView.FLET_APP, port=8009)
+ft.app(target=main)
