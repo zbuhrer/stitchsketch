@@ -10,13 +10,18 @@ services:
       - ./media:/app/ui/media
     env_file: .env
 
-  api_gateway:
-    container_name: "StitchSketch-API"
+  postgres:
+    container_name: "StitchSketch-PG"
+    image: postgres:latest
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
-      - "8089:8089"
-    build:
-      context: ./src/api_gateway
-      dockerfile: api_gateway.Dockerfile
+      - "5432:5432"
+    volumes:
+      - ./.postgres_data:/var/lib/postgresql/data
+      - ./src/init.sql:/docker-entrypoint-initdb.d/init.sql
     env_file: .env
 
   keycloak:
@@ -36,18 +41,4 @@ services:
     build:
       context: ./src/keycloak
       dockerfile: keycloak.Dockerfile
-    env_file: .env
-
-  postgres:
-    container_name: "StitchSketch-PG"
-    image: postgres:latest
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./.postgres_data:/var/lib/postgresql/data
-      - ./src/init.sql:/docker-entrypoint-initdb.d/init.sql
     env_file: .env
