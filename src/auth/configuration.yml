@@ -1,0 +1,16 @@
+# ./auth/configuration.yml
+
+server:
+  host: 0.0.0.0
+  port: 9091
+
+storage:
+  encryption_key: "a_very_secure_encryption_key"
+  postgres:
+    host: postgres
+    port: 5432
+    database: ${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+jwt_secret: "your_jwt_secret"

@@ -56,6 +56,12 @@ class Employee(Base):
     name = Column(String, nullable=False)
     role = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String)
+
+    def __init__(self, name, email, hashed_password):
+        self.name = name
+        self.email = email
+        self.hashed_password = hashed_password
 
 class JobAssignment(Base):
     __tablename__ = 'job_assignments'

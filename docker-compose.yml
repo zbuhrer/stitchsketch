@@ -1,6 +1,7 @@
 services:
   ui:
     container_name: "StitchSketch-UI"
+    hostname: stitchsketch-dev
     ports:
       - "8009:8000"
     build:
@@ -12,7 +13,7 @@ services:
 
   postgres:
     container_name: "StitchSketch-PG"
-    image: postgres:latest
+    image: postgres:15
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -22,23 +23,4 @@ services:
     volumes:
       - ./.postgres_data:/var/lib/postgresql/data
       - ./src/init.sql:/docker-entrypoint-initdb.d/init.sql
-    env_file: .env
-
-  keycloak:
-    container_name: "StitchSketch-IAM"
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./keycloak-users.json:/opt/keycloak/conf/keycloak-users.json
-      - ./keycloak-realm.json:/opt/keycloak/conf/keycloak-realm.json
-    environment:
-      - KEYCLOAK_USER=${KEYCLOAK_ADMIN_USER}
-      - KEYCLOAK_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
-      - KC_DB=${KC_DB:-postgres}
-      - KC_DB_URL=${KC_DB_URL}
-      - KC_DB_USERNAME=${POSTGRES_USER}
-      - KC_DB_PASSWORD=${POSTGRES_PASSWORD}
-    build:
-      context: ./src/keycloak
-      dockerfile: keycloak.Dockerfile
     env_file: .env

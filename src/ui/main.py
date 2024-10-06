@@ -1,16 +1,12 @@
 import flet as ft
 
 from fastapi import Query, Path, Depends
-from flet.fastapi.flet_fastapi import List, FastAPI
-from sqlalchemy.orm import Session
+from flet.fastapi.flet_fastapi import FastAPI
 
-from models.database import db_session, get_db
-from models.models import Job
-
+from models.models import Job, Employee
 from modals import NewJobModal, JobModal
 from nav_pages import DashboardPage, SettingsPage
 from widgets import CustomAppBar, ToasterMessage
-
 
 app = FastAPI()
 
