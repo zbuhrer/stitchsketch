@@ -1,4 +1,6 @@
-name: stitchsketch
+version: "3.9"
+name: twenty
+
 services:
   change-vol-ownership:
     image: ubuntu
@@ -11,37 +13,7 @@ services:
       chown -R 1000:1000 /tmp/server-local-data
       && chown -R 1000:1000 /tmp/docker-data"
 
-  ui:
-    container_name: "StitchSketch-UI"
-    hostname: stitchsketch-dev
-    ports:
-      - "8009:8000"
-    build:
-      context: ./src/ui
-      dockerfile: ui.Dockerfile
-    volumes:
-      - ./media:/app/ui/media
-    env_file: .env
-
-  db:
-    container_name: "StitchSketch-DB-${POSTGRES_DB}"
-    image: postgres:15
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - db-data:/bitnami/postgresql
-    healthcheck:
-      test: pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: always
-
-  twenty-server:
+  server:
     image: twentycrm/twenty:${TAG}
     volumes:
       - server-local-data:/app/packages/twenty-server/${STORAGE_LOCAL_PATH:-.local-storage}
@@ -50,10 +22,10 @@ services:
       - "3000:3000"
     environment:
       PORT: 3000
-      PG_DATABASE_URL: postgres://twenty:twenty@postgres/default
+      PG_DATABASE_URL: postgres://twenty:twenty@${PG_DATABASE_HOST}/default
       SERVER_URL: ${SERVER_URL}
       FRONT_BASE_URL: ${FRONT_BASE_URL:-$SERVER_URL}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://localhost:6379}
 
       ENABLE_DB_MIGRATIONS: "true"
 
@@ -80,12 +52,12 @@ services:
     image: twentycrm/twenty:${TAG}
     command: ["yarn", "worker:prod"]
     environment:
-      PG_DATABASE_URL: postgres://twenty:twenty@postgres/default
+      PG_DATABASE_URL: postgres://twenty:twenty@${PG_DATABASE_HOST}/default
       SERVER_URL: ${SERVER_URL}
       FRONT_BASE_URL: ${FRONT_BASE_URL:-$SERVER_URL}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://localhost:6379}
 
-      ENABLE_DB_MIGRATIONS: "false"
+      ENABLE_DB_MIGRATIONS: "false" # it already runs on the server
 
       STORAGE_TYPE: ${STORAGE_TYPE}
       STORAGE_S3_REGION: ${STORAGE_S3_REGION}
@@ -96,8 +68,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      twenty-server:
+      server:
         condition: service_healthy
+    restart: always
+
+  db:
+    image: twentycrm/twenty-postgres:${TAG}
+    volumes:
+      - db-data:/bitnami/postgresql
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+    healthcheck:
+      test: pg_isready -U twenty -d default
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: always
 
   redis:

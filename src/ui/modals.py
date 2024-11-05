@@ -13,7 +13,6 @@ class NewJobModal(ft.AlertDialog):
     def __init__(self, dashboard_page: ft.Container, app):
         super().__init__(title=ft.Text("Create Job"))
         self.semantics_label = "new job form pop-up modal"
-        self.modal = True
         self.on_dismiss = lambda e: print("job modal dismissed")
 
         # form fields

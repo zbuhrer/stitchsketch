@@ -1,6 +1,5 @@
 import flet as ft
 
-from fastapi import Query, Path, Depends
 from flet.fastapi.flet_fastapi import FastAPI
 
 from models.models import Job, Employee
@@ -99,4 +98,8 @@ def main(page: ft.Page):
 
     page.go("/dashboard")
 
-ft.app(target=main, export_asgi_app=True)
+# ft.app(target=main, export_asgi_app=True)
+# ft.app(target=main)
+
+if __name__ == "__main__":
+    ft.app(target=main)
