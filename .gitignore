@@ -173,4 +173,5 @@ requirements.txt
 .postgres_data
 
 
-/src/ui/media/.*
+archive
+*_data

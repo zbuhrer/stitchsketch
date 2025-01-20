@@ -1,112 +1,36 @@
-name: stitchsketch
 services:
-  change-vol-ownership:
-    image: ubuntu
-    user: root
-    volumes:
-      - server-local-data:/tmp/server-local-data
-      - docker-data:/tmp/docker-data
-    command: >
-      bash -c "
-      chown -R 1000:1000 /tmp/server-local-data
-      && chown -R 1000:1000 /tmp/docker-data"
-
-  ui:
-    container_name: "StitchSketch-UI"
-    hostname: stitchsketch-dev
+  suitecrm:
+    image: bitnami/suitecrm:8
+    container_name: suitecrm
+    environment:
+      - ALLOW_EMPTY_PASSWORD=no
+      - SUITECRM_DATABASE_HOST=db
+      - SUITECRM_DATABASE_PORT_NUMBER=3306
+      - SUITECRM_DATABASE_NAME=${DB_NAME}
+      - SUITECRM_DATABASE_USER=${DB_USER}
+      - SUITECRM_DATABASE_PASSWORD=${DB_PASSWORD}
     ports:
-      - "8009:8000"
-    build:
-      context: ./src/ui
-      dockerfile: ui.Dockerfile
+      - 80:8080
+      - 443:8443
+    depends_on:
+      - db
     volumes:
-      - ./media:/app/ui/media
-    env_file: .env
+      - ./suitecrm_data:/bitnami/suitecrm
 
   db:
-    container_name: "StitchSketch-DB-${POSTGRES_DB}"
-    image: postgres:15
+    image: bitnami/mariadb:latest
+    container_name: suitecrm_db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      - ALLOW_EMPTY_PASSWORD=no
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DB_NAME}
+      - MARIADB_USER=${DB_USER}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - 3306:3306
     volumes:
-      - db-data:/bitnami/postgresql
-    healthcheck:
-      test: pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: always
-
-  twenty-server:
-    image: twentycrm/twenty:${TAG}
-    volumes:
-      - server-local-data:/app/packages/twenty-server/${STORAGE_LOCAL_PATH:-.local-storage}
-      - docker-data:/app/docker-data
-    ports:
-      - "3000:3000"
-    environment:
-      PORT: 3000
-      PG_DATABASE_URL: postgres://twenty:twenty@postgres/default
-      SERVER_URL: ${SERVER_URL}
-      FRONT_BASE_URL: ${FRONT_BASE_URL:-$SERVER_URL}
-      REDIS_URL: redis://redis:6379
-
-      ENABLE_DB_MIGRATIONS: "true"
-
-      SIGN_IN_PREFILLED: ${SIGN_IN_PREFILLED}
-      STORAGE_TYPE: ${STORAGE_TYPE}
-      STORAGE_S3_REGION: ${STORAGE_S3_REGION}
-      STORAGE_S3_NAME: ${STORAGE_S3_NAME}
-      STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT}
-
-      APP_SECRET: ${APP_SECRET}
-    depends_on:
-      change-vol-ownership:
-        condition: service_completed_successfully
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: curl --fail http://localhost:3000/healthz
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: always
-
-  worker:
-    image: twentycrm/twenty:${TAG}
-    command: ["yarn", "worker:prod"]
-    environment:
-      PG_DATABASE_URL: postgres://twenty:twenty@postgres/default
-      SERVER_URL: ${SERVER_URL}
-      FRONT_BASE_URL: ${FRONT_BASE_URL:-$SERVER_URL}
-      REDIS_URL: redis://redis:6379
-
-      ENABLE_DB_MIGRATIONS: "false"
-
-      STORAGE_TYPE: ${STORAGE_TYPE}
-      STORAGE_S3_REGION: ${STORAGE_S3_REGION}
-      STORAGE_S3_NAME: ${STORAGE_S3_NAME}
-      STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT}
-
-      APP_SECRET: ${APP_SECRET}
-    depends_on:
-      db:
-        condition: service_healthy
-      twenty-server:
-        condition: service_healthy
-    restart: always
-
-  redis:
-    image: redis
-    ports:
-      - "6379:6379"
-    restart: always
+      - ./db_data:/bitnami/mariadb
 
 volumes:
-  docker-data:
-  db-data:
-  server-local-data:
+  suitecrm_data:
+  db_data:
