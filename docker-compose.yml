@@ -30,7 +30,34 @@ services:
       - 3306:3306
     volumes:
       - ./db_data:/bitnami/mariadb
+  frontend:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./fe:/app
+      - /app/node_modules
+    environment:
+      - DB_NAME={ DB_NAME }
+      - DB_USER={ DB_USER }
+      - DB_PASSWORD={ DB_PASSWORD }
+      - DB_ROOT_PASSWORD= { DB_ROOT_PASSWORD }
+    depends_on:
+      - suitecrm
+
+  metabase:
+    image: metabase/metabase
+    container_name: metabase
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    volumes:
+      - metabase_data:/metabase-data
 
 volumes:
   suitecrm_data:
   db_data:
+  metabase_data:
