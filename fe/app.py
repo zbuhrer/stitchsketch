@@ -56,7 +56,6 @@ def header():
     st.markdown(
         f"""
         <div class="app-header">
-            <img src="logo.png" class="app-logo">
             <div class="app-title">StitchSketch</div>
             <div class="nav-buttons">
                 <a href="/" target="_self">
@@ -70,36 +69,30 @@ def header():
 
 
 def main():
-    # Initialize session state
-    if 'config' not in st.session_state:
-        st.session_state['config'] = load_config()  # Load configuration
-
-    # Initialize database connection
-    if 'db_connection' not in st.session_state:
-        st.session_state['db_connection'] = DatabaseConnection()
-
-        # Initialize the database with accounts table and initial accounts.
-        initialize_database(st.session_state['db_connection'])
-
-    if 'accounts' not in st.session_state:
-        st.session_state['accounts'] = []
-    if 'selected_account_id' not in st.session_state:
-        st.session_state['selected_account_id'] = None
-    if 'media_items' not in st.session_state:
-        # Mock media items
-        st.session_state['media_items'] = [
+    # Define initial session state
+    initial_state = {
+        'config': load_config(),
+        'db_connection': DatabaseConnection(),
+        'accounts': [],
+        'selected_account_id': None,
+        'media_items': [
             {"id": 101, "name": "Image 1", "account_id": 1},
             {"id": 102, "name": "Video 1", "account_id": 2},
             {"id": 103, "name": "Model 1", "account_id": 1},
-        ]
-    if 'selected_media_item_id' not in st.session_state:
-        st.session_state['selected_media_item_id'] = None
+        ],
+        'selected_media_item_id': None,
+        'page_name': "Home"
+    }
 
-    # Initialize page_name in session state
-    if 'page_name' not in st.session_state:
-        st.session_state.page_name = "Home"
+    # Initialize session state
+    for key, value in initial_state.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-    # React to setting changes.
+    # Initialize the database with accounts table and initial accounts.
+    initialize_database(st.session_state['db_connection'])
+
+    # React to setting changes.  Consider making this a function.
     if 'new_database_path' in st.session_state:
         st.session_state['config']['database']['path'] = st.session_state['new_database_path']
         del st.session_state['new_database_path']
