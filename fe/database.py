@@ -1,100 +1,107 @@
-import mysql.connector
-from mysql.connector import pooling
-import json
+import pymysql
 import os
+from dotenv import load_dotenv
 
-# Load database configuration from config.json or environment variables
-
-
-def load_db_config(config_file="config.json"):
-    try:
-        with open(config_file, "r") as f:
-            config = json.load(f)
-            db_config = config.get("database", {})
-            return db_config
-    except FileNotFoundError:
-        print(f"Config file not found: {config_file}")
-        return {}
-    except json.JSONDecodeError:
-        print(f"Invalid JSON in config file: {config_file}")
-        return {}
+load_dotenv()  # Load environment variables from .env file
 
 
 class DatabaseConnection:
-    def __init__(self, config_file="config.json"):
-        self.db_config = load_db_config(config_file)
-        self.pool_name = "mysql_pool"
-        self.pool = self.create_pool()
+    def __init__(self):
+        # Default to localhost
+        self.db_host = os.getenv("DB_HOST", "localhost")
+        self.db_port = int(os.getenv("DB_PORT", "3306"))  # Default to 3306
+        self.db_name = os.getenv("DB_NAME")
+        self.db_user = os.getenv("DB_USER")
+        self.db_password = os.getenv("DB_PASSWORD")
+        self.conn = None
+        self.connect()
 
-    def create_pool(self):
+    def connect(self):
         try:
-            pool = pooling.MySQLConnectionPool(pool_name=self.pool_name,
-                                               pool_size=5,  # Adjust pool size as needed
-                                               **self.db_config)
-            print("Connection pool created successfully.")
-            return pool
-        except mysql.connector.Error as err:
-            print(f"Failed to create connection pool: {err}")
+            self.conn = pymysql.connect(
+                host=self.db_host,
+                port=self.db_port,
+                user=self.db_user,
+                password=self.db_password,
+                database=self.db_name
+            )
+            print(f"Connected to MariaDB database: {
+                  self.db_name}@{self.db_host}:{self.db_port}")
+        except pymysql.err.Error as e:
+            print(f"Error connecting to MariaDB database: {e}")
+            self.conn = None
+
+    def disconnect(self):
+        if self.conn:
+            self.conn.close()
+            self.conn = None
+
+    def is_connected(self):
+        return self.conn is not None
+
+    def get_database_name(self):
+        return self.db_name
+
+    def get_number_of_accounts(self):
+        if not self.conn:
+            return 0
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM accounts")
+            count = cursor.fetchone()[0]
+            return count
+        except pymysql.err.Error as e:
+            print(f"Error fetching account count: {e}")
+            return 0
+
+    def execute_query(self, query, params=None):
+        if not self.conn:
+            print("Not connected to the database.")
             return None
 
-    def get_connection(self):
-        if self.pool:
-            try:
-                connection = self.pool.get_connection()
-                return connection
-            except mysql.connector.Error as err:
-                print(f"Error getting connection from pool: {err}")
-                return None
-        else:
-            print("Connection pool is not available.")
-            return None
-
-    def execute_query(self, query, params=None, fetch=False):
-        connection = self.get_connection()
-        if connection:
-            cursor = connection.cursor()
-            try:
+        try:
+            cursor = self.conn.cursor()
+            if params:
                 cursor.execute(query, params)
-                if fetch:
-                    result = cursor.fetchall()
-                else:
-                    result = None
-                connection.commit()
-                return result
-            except mysql.connector.Error as err:
-                print(f"Query execution failed: {err}")
-                connection.rollback()
-                return None
-            finally:
-                cursor.close()
-                connection.close()  # Return connection to the pool
-        else:
+            else:
+                cursor.execute(query)
+            self.conn.commit()
+            return cursor.fetchall()
+        except pymysql.err.Error as e:
+            print(f"Error executing query: {e}")
             return None
 
-    def update_setting(self, setting_name, setting_value):
-        query = "UPDATE settings SET setting_value = %s WHERE setting_name = %s"
-        params = (setting_value, setting_name)
-        self.execute_query(query, params)
+    # Example usage (can be removed later)
+    def create_accounts_table(self):
+        query = """
+        CREATE TABLE IF NOT EXISTS accounts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL
+        );
+        """
+        self.execute_query(query)
 
-    def get_setting(self, setting_name):
-        query = "SELECT setting_value FROM settings WHERE setting_name = %s"
-        params = (setting_name,)
-        result = self.execute_query(query, params, fetch=True)
-        if result:
-            return result[0][0]  # Assuming setting_value is the first column
-        else:
-            return None
+    def insert_account(self, name):
+        query = "INSERT INTO accounts (name) VALUES (?)"
+        self.execute_query(query, (name,))
+
+    def fetch_all_accounts(self):
+        query = "SELECT id, name FROM accounts"
+        return self.execute_query(query)
 
 
-# Example usage (for testing purposes)
+# Example usage:
 if __name__ == '__main__':
-    db = DatabaseConnection()
+    db_connection = DatabaseConnection()
+    db_connection.create_accounts_table()
+    db_connection.insert_account("Test Account 1")
+    db_connection.insert_account("Test Account 2")
 
-    # Example: Update a setting
-    db.update_setting('database_path', '/new/database/path')
+    accounts = db_connection.fetch_all_accounts()
+    if accounts:
+        for account in accounts:
+            print(f"Account ID: {account[0]}, Name: {account[1]}")
+    else:
+        print("No accounts found.")
 
-    # Example: Retrieve a setting
-    path = db.get_setting('database_path')
-    print(f"Database path from DB: {path}")
-
-    db.close_pool()
+    db_connection.disconnect()

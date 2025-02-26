@@ -1,6 +1,5 @@
 import streamlit as st
 from abc import ABC, abstractmethod
-from models import Account  # Import the Account model
 
 
 class Page(ABC):
@@ -16,7 +15,22 @@ class Page(ABC):
 class HomePage(Page):
     def render(self):
         st.header("Welcome to the Application")
-        st.write("Use the sidebar to navigate to different sections.")
+        st.write("Use the buttons below to navigate to different sections.")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            if st.button("Accounts"):
+                st.session_state.page_name = "Accounts"
+                st.rerun()
+        with col2:
+            if st.button("Gallery"):
+                st.session_state.page_name = "Gallery"
+                st.rerun()
+        with col3:
+            if st.button("Settings"):
+                st.session_state.page_name = "Settings"
+                st.rerun()
 
     def required_state_keys(self):
         return []
@@ -27,12 +41,29 @@ class AccountsPage(Page):
         st.header("Accounts Management")
         st.write("Manage user accounts here.")
 
-        # Fetch accounts from the database
-        accounts = Account.fetch_all()
+        db_connection = st.session_state.get('db_connection')
 
+        if not db_connection or not db_connection.is_connected():
+            st.error("Not connected to the database.")
+            return  # Exit if no connection
+
+        # Database Information
+        db_name = db_connection.get_database_name()
+        is_connected = db_connection.is_connected()
+        num_accounts = db_connection.get_number_of_accounts()
+
+        st.subheader("Database Information")
+        st.write(f"Database Name: {db_name}")
+        st.write(f"Connection Status: {
+                 'Connected' if is_connected else 'Disconnected'}")
+        st.write(f"Number of Accounts: {num_accounts}")
+
+        # Account Listing
+        st.subheader("Accounts List")
+        accounts = db_connection.fetch_all_accounts()  # Fetch from database
         if accounts:
             for account in accounts:
-                st.write(f"Account ID: {account.id}, Name: {account.name}")
+                st.write(f"Account ID: {account[0]}, Name: {account[1]}")
         else:
             st.write("No accounts found.")
 
