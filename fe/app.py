@@ -1,6 +1,7 @@
 import streamlit as st
 from pages import AccountsPage, GalleryPage, MediaItemPage, HomePage, SettingsPage
 from database import DatabaseConnection  # Import the DatabaseConnection class
+import os
 
 
 def initialize_database(db_connection):
@@ -10,8 +11,27 @@ def initialize_database(db_connection):
         print("No Accounts")
 
 
+def load_config():
+    """Loads configuration settings.  In a real app, this might read from a file."""
+    config = {
+        'database': {'path': 'database.db'},
+        'media': {'base_path': './media'}  # Default media directory
+    }
+    return config
+
+
+def save_config(config):
+    """Saves configuration settings.  In a real app, this would write to a file."""
+    # This is a placeholder. In a real application, you would save the config to a file (e.g., JSON, YAML).
+    print("Saving config (placeholder):", config)
+
+
 def main():
     st.title("Application Dashboard")
+
+    # Initialize session state
+    if 'config' not in st.session_state:
+        st.session_state['config'] = load_config()  # Load configuration
 
     # Initialize database connection
     if 'db_connection' not in st.session_state:
@@ -20,7 +40,6 @@ def main():
         # Initialize the database with accounts table and initial accounts.
         initialize_database(st.session_state['db_connection'])
 
-    # Initialize session state
     if 'accounts' not in st.session_state:
         st.session_state['accounts'] = []
     if 'selected_account_id' not in st.session_state:
@@ -39,11 +58,21 @@ def main():
     if 'page_name' not in st.session_state:
         st.session_state.page_name = "Home"
 
-    # st.sidebar.title("Navigation")
-    # page_name = st.sidebar.radio(
-    #     "Go to",
-    #     ["Home", "Accounts", "Gallery", "Media Item", "Settings"]
-    # )
+    # React to setting changes.
+    if 'new_database_path' in st.session_state:
+        st.session_state['config']['database']['path'] = st.session_state['new_database_path']
+        del st.session_state['new_database_path']
+    if 'new_base_media_path' in st.session_state:
+        st.session_state['config']['media']['base_path'] = st.session_state['new_base_media_path']
+        del st.session_state['new_base_media_path']
+
+        # Save config
+        save_config(st.session_state['config'])
+
+    # Sidebar to reload config
+    if st.sidebar.button("Reload Config"):
+        st.session_state['config'] = load_config()  # Reload configuration
+        st.rerun()
 
     page_name = st.session_state.page_name
 
@@ -61,4 +90,10 @@ def main():
 
 
 if __name__ == "__main__":
+    # Ensure the media directory exists.
+    config = load_config()
+    media_path = config.get('media', {}).get('base_path')
+    if media_path:
+        os.makedirs(media_path, exist_ok=True)
+
     main()

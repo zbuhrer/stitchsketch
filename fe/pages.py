@@ -1,5 +1,6 @@
 import streamlit as st
-import pandas as pd
+import os
+import glob
 from abc import ABC, abstractmethod
 
 
@@ -64,10 +65,6 @@ class AccountsPage(Page):
         accounts = db_connection.fetch_all_accounts()
 
         if accounts:
-            # Create a DataFrame with only the 'Name' column for display
-            df = pd.DataFrame([account[1]
-                              for account in accounts], columns=["Name"])
-
             # Add a form for each row to make it clickable
             for i, account in enumerate(accounts):
                 account_id = account[0]  # Get the account_id
@@ -75,7 +72,7 @@ class AccountsPage(Page):
                 with st.form(key=f'account_form_{i}'):
                     # Display only the name
                     st.write(f"Account Name: {account_name}")
-                    submit_button = st.form_submit_button(label='Open')
+                    submit_button = st.form_submit_button(label='Select')
                     if submit_button:
                         st.session_state['selected_account_id'] = account_id
                         st.session_state.page_name = "Gallery"
@@ -90,10 +87,95 @@ class AccountsPage(Page):
 class GalleryPage(Page):
     def render(self):
         st.header("Gallery")
-        st.write("View and manage media items here.")
+
+        config = st.session_state.get('config', {})
+        base_media_dir = config.get('media', {}).get('base_path', None)
+        selected_account_id = st.session_state.get('selected_account_id')
+        db_connection = st.session_state.get('db_connection')
+
+        if not base_media_dir:
+            st.error(
+                "Base media directory not configured. Please set it in Settings.")
+            return
+
+        # Determine the account name for the tab title
+        if selected_account_id:
+            # Fetch the account from the database using the selected_account_id
+            account = db_connection.fetch_account(selected_account_id)
+            if account:
+                # Assuming account[1] is the name
+                selected_account_name = account[1]
+            else:
+                selected_account_name = "Unknown Account"
+        else:
+            selected_account_name = "Select Account"
+
+        # Create tabs
+        all_tab, account_tab = st.tabs(["All", selected_account_name])
+
+        with all_tab:
+            st.subheader("All Media")
+            all_media_files = glob.glob(os.path.join(
+                base_media_dir, "**/*.*"), recursive=True)
+
+            if not all_media_files:
+                st.info("No media files found in any account directories.")
+            else:
+                for file_path in all_media_files:
+                    try:
+                        file_extension = os.path.splitext(file_path)[1].lower()
+
+                        if file_extension in ['.jpg', '.jpeg', '.png']:
+                            st.image(file_path, caption=os.path.basename(
+                                file_path), use_column_width=True)
+                        elif file_extension in ['.mp4', '.avi', '.mov']:
+                            # Set start_time to 0
+                            st.video(file_path, start_time=0)
+                        else:
+                            st.warning(f"Unsupported media type: {file_extension} for file {os.path.basename(
+                                file_path)}")
+                    except Exception as e:
+                        st.error(
+                            f"Error displaying {os.path.basename(file_path)}: {e}")
+
+        with account_tab:
+            if selected_account_id:
+                account_media_dir = os.path.join(
+                    base_media_dir, selected_account_id)
+
+                if not os.path.exists(account_media_dir):
+                    st.warning(f"Directory not found: {account_media_dir}")
+                else:
+                    media_files = glob.glob(os.path.join(
+                        account_media_dir, "*"))  # List all files
+
+                    if not media_files:
+                        st.info("No media files found for this account.")
+                    else:
+                        st.subheader(
+                            f"Media for Account ID: {selected_account_id}")
+                        for file_path in media_files:
+                            try:
+                                file_extension = os.path.splitext(
+                                    file_path)[1].lower()
+
+                                if file_extension in ['.jpg', '.jpeg', '.png']:
+                                    st.image(file_path, caption=os.path.basename(
+                                        file_path), use_column_width=True)
+                                elif file_extension in ['.mp4', '.avi', '.mov']:
+                                    # Set start_time to 0
+                                    st.video(file_path, start_time=0)
+                                else:
+                                    st.warning(f"Unsupported media type: {file_extension} for file {os.path.basename(
+                                        file_path)}")
+                            except Exception as e:
+                                st.error(
+                                    f"Error displaying {os.path.basename(file_path)}: {e}")
+            else:
+                st.info("Please select an account from the Accounts page.")
 
     def required_state_keys(self):
-        return ['media_items', 'accounts']
+        return ['config', 'selected_account_id']
 
 
 class MediaItemPage(Page):
@@ -116,6 +198,14 @@ class SettingsPage(Page):
 
             new_database_path = st.text_input(
                 "Database Path", value=current_database_path)
+
+            # Get the current base_media_path from the config
+            current_base_media_path = st.session_state.get(
+                'config', {}).get('media', {}).get('base_path', '')
+
+            new_base_media_path = st.text_input(
+                "Base Media Path", value=current_base_media_path)
+
             submitted = st.form_submit_button("Save Changes")
 
             if submitted:
@@ -124,10 +214,16 @@ class SettingsPage(Page):
                     st.error("Database path cannot be empty.")
                 elif not isinstance(new_database_path, str):
                     st.error("Database path must be a string.")
+                elif not new_base_media_path:
+                    st.error("Base media path cannot be empty.")
+                elif not isinstance(new_base_media_path, str):
+                    st.error("Base media path must be a string.")
                 # Removed file exists test, as it might not exist on the server
                 else:
                     # Update the session state (the actual writing to the config will happen in app.py)
                     st.session_state['new_database_path'] = new_database_path
+                    st.session_state['new_base_media_path'] = new_base_media_path
+
                     st.success(
                         "Settings saved!  Click the 'Reload Config' button in the sidebar to apply changes.")
 

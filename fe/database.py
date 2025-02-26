@@ -75,27 +75,35 @@ class DatabaseConnection:
     def create_accounts_table(self):
         query = """
         CREATE TABLE IF NOT EXISTS accounts (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id VARCHAR(255) PRIMARY KEY,
             name VARCHAR(255) NOT NULL
         );
         """
         self.execute_query(query)
 
-    def insert_account(self, name):
-        query = "INSERT INTO accounts (name) VALUES (?)"
-        self.execute_query(query, (name,))
+    def insert_account(self, id, name):
+        query = "INSERT INTO accounts (id, name) VALUES (%s, %s)"
+        self.execute_query(query, (id, name))
 
     def fetch_all_accounts(self):
         query = "SELECT id, name FROM accounts"
         return self.execute_query(query)
+
+    def fetch_account(self, account_id):
+        query = "SELECT id, name FROM accounts WHERE id = %s"
+        result = self.execute_query(query, (account_id,))
+        if result:
+            return result[0]  # Return the first (and only) row
+        else:
+            return None
 
 
 # Example usage:
 if __name__ == '__main__':
     db_connection = DatabaseConnection()
     db_connection.create_accounts_table()
-    db_connection.insert_account("Test Account 1")
-    db_connection.insert_account("Test Account 2")
+    db_connection.insert_account("1", "Test Account 1")
+    db_connection.insert_account("2", "Test Account 2")
 
     accounts = db_connection.fetch_all_accounts()
     if accounts:
