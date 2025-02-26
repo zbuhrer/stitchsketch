@@ -26,9 +26,50 @@ def save_config(config):
     print("Saving config (placeholder):", config)
 
 
-def main():
-    st.title("Application Dashboard")
+def header():
+    """Creates the header banner with app name, logo, and navigation buttons."""
+    st.markdown(
+        """
+        <style>
+        .app-header {
+            padding: 1rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .app-logo {
+            margin-left: 1rem;
+            height: 50px;  /* Adjust as needed */
+        }
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .nav-buttons {
+            margin-right: 1rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
+    st.markdown(
+        f"""
+        <div class="app-header">
+            <img src="logo.png" class="app-logo">
+            <div class="app-title">StitchSketch</div>
+            <div class="nav-buttons">
+                <a href="/" target="_self">
+                  <button>Home</button>
+                </a>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def main():
     # Initialize session state
     if 'config' not in st.session_state:
         st.session_state['config'] = load_config()  # Load configuration
@@ -73,6 +114,9 @@ def main():
     if st.sidebar.button("Reload Config"):
         st.session_state['config'] = load_config()  # Reload configuration
         st.rerun()
+
+    # **ADD HEADER HERE**
+    header()
 
     page_name = st.session_state.page_name
 
