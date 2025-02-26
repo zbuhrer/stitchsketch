@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from abc import ABC, abstractmethod
 
 
@@ -39,13 +40,13 @@ class HomePage(Page):
 class AccountsPage(Page):
     def render(self):
         st.header("Accounts Management")
-        st.write("Manage user accounts here.")
+        st.write("Select an account to view its gallery.")
 
         db_connection = st.session_state.get('db_connection')
 
         if not db_connection or not db_connection.is_connected():
             st.error("Not connected to the database.")
-            return  # Exit if no connection
+            return
 
         # Database Information
         db_name = db_connection.get_database_name()
@@ -60,15 +61,30 @@ class AccountsPage(Page):
 
         # Account Listing
         st.subheader("Accounts List")
-        accounts = db_connection.fetch_all_accounts()  # Fetch from database
+        accounts = db_connection.fetch_all_accounts()
+
         if accounts:
-            for account in accounts:
-                st.write(f"Account ID: {account[0]}, Name: {account[1]}")
+            # Create a DataFrame with only the 'Name' column for display
+            df = pd.DataFrame([account[1]
+                              for account in accounts], columns=["Name"])
+
+            # Add a form for each row to make it clickable
+            for i, account in enumerate(accounts):
+                account_id = account[0]  # Get the account_id
+                account_name = account[1]
+                with st.form(key=f'account_form_{i}'):
+                    # Display only the name
+                    st.write(f"Account Name: {account_name}")
+                    submit_button = st.form_submit_button(label='Open')
+                    if submit_button:
+                        st.session_state['selected_account_id'] = account_id
+                        st.session_state.page_name = "Gallery"
+                        st.rerun()
         else:
             st.write("No accounts found.")
 
     def required_state_keys(self):
-        return []  # No session state keys are required anymore
+        return []
 
 
 class GalleryPage(Page):
