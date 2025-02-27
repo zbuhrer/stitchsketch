@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import glob
 from abc import ABC, abstractmethod
+import io  # For working with BytesIO objects
 
 
 class Page(ABC):
@@ -122,6 +123,10 @@ class GalleryPage(Page):
                 st.info("No media files found in any account directories.")
             else:
                 for file_path in all_media_files:
+                    if not isinstance(file_path, str):
+                        st.warning(
+                            f"Skipping non-string file path: {file_path}")
+                        continue
                     try:
                         file_extension = os.path.splitext(file_path)[1].lower()
 
@@ -129,7 +134,6 @@ class GalleryPage(Page):
                             st.image(file_path, caption=os.path.basename(
                                 file_path), use_column_width=True)
                         elif file_extension in ['.mp4', '.avi', '.mov']:
-                            # Set start_time to 0
                             st.video(file_path, start_time=0)
                         else:
                             st.warning(f"Unsupported media type: {file_extension} for file {os.path.basename(
@@ -141,44 +145,81 @@ class GalleryPage(Page):
         with account_tab:
             if selected_account_id:
                 account_media_dir = os.path.join(
-                    # Important: Cast to string.
+                    # Ensure account_id is a string
                     base_media_dir, str(selected_account_id))
 
-                # **CREATE THE DIRECTORY IF IT DOESN'T EXIST**
-                try:
-                    os.makedirs(account_media_dir, exist_ok=True)
-                    # Log the event.  Good for debugging.
-                    print(f"Created directory: {account_media_dir}")
-                except OSError as e:
-                    st.error(f"Error creating directory {
-                             account_media_dir}: {e}")
-                    return  # Stop processing if directory creation fails.
+                # Ensure the account directory exists
+                if not os.path.exists(account_media_dir):
+                    try:
+                        os.makedirs(account_media_dir)
+                        st.info(f"Created directory: {account_media_dir}")
+                    except Exception as e:
+                        st.error(f"Error creating directory: {e}")
+                        return  # Stop further processing if directory creation fails
 
-                media_files = glob.glob(os.path.join(
-                    account_media_dir, "*"))  # List all files
+                # File Upload Section
+                uploaded_file = st.file_uploader(
+                    "Upload Media", type=['jpg', 'jpeg', 'png', 'mp4', 'avi', 'mov'])
+
+                if uploaded_file is not None:
+                    try:
+                        # Determine the file size
+                        file_size = len(uploaded_file.getvalue())
+                        # Save the uploaded file to the account's directory
+                        file_path = os.path.join(
+                            account_media_dir, uploaded_file.name)
+
+                        # Create a placeholder for the progress bar
+                        progress_bar_placeholder = st.empty()
+
+                        bytes_written = 0
+
+                        with open(file_path, "wb") as f:
+                            # Read the file in chunks
+                            for chunk in iter(lambda: uploaded_file.read(4096), b""):  # 4KB chunks
+                                f.write(chunk)
+                                bytes_written += len(chunk)
+                                progress = int(
+                                    (bytes_written / file_size) * 100)
+                                # Update the progress bar in the placeholder
+                                progress_bar_placeholder.progress(progress)
+
+                        # Set progress bar to 100%
+                        progress_bar_placeholder.progress(100)
+
+                        st.success(
+                            f"File '{uploaded_file.name}' uploaded successfully!")
+                        # Rerun to refresh the gallery
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Error uploading file: {e}")
+
+                # Display Media Files
+                media_files = glob.glob(os.path.join(account_media_dir, "*"))
 
                 if not media_files:
                     st.info("No media files found for this account.")
                 else:
-                    st.subheader(
-                        f"Media for Account ID: {selected_account_id}")
+                    st.subheader(f"Media for Account ID: {
+                                 selected_account_id}")
                     for file_path in media_files:
                         try:
-                            file_extension = os.path.splitext(
-                                file_path)[1].lower()
+                            file_extension = os.path.splitext(file_path)[
+                                1].lower()
 
                             if file_extension in ['.jpg', '.jpeg', '.png']:
                                 st.image(file_path, caption=os.path.basename(
                                     file_path), use_column_width=True)
                             elif file_extension in ['.mp4', '.avi', '.mov']:
-                                # Set start_time to 0
                                 st.video(file_path, start_time=0)
                             else:
-                                st.warning(f"Unsupported media type: {file_extension} for file {os.path.basename(
-                                    file_path)}")
+                                st.warning(f"Unsupported media type: {file_extension} for file {
+                                           os.path.basename(file_path)}")
                         except Exception as e:
-                            st.error(
-                                f"Error displaying {os.path.basename(file_path)}: {e}")
+                            st.error(f"Error displaying {
+                                     os.path.basename(file_path)}: {e}")
+
             else:
                 st.info("Please select an account from the Accounts page.")
 
@@ -225,7 +266,7 @@ class SettingsPage(Page):
                 elif not new_base_media_path:
                     st.error("Base media path cannot be empty.")
                 elif not isinstance(new_base_media_path, str):
-                    st.error("Base media path must be a string.")
+                    st.error("Database path must be a string.")
                 # Removed file exists test, as it might not exist on the server
                 else:
                     # Update the session state (the actual writing to the config will happen in app.py)
