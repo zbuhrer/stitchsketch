@@ -2,10 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Settings
-rows = 10      # number of diamond rows
-cols = 10      # number of diamond columns
 vertical_spacing = 1  # vertical distance between diamond centers (in inches)
 theta = 69  # acute angle in degrees
+
+# Page size (in inches) - US Letter
+page_width = 8.5
+page_height = 11.0
+
 
 # Calculate half of each diagonal based on setting vertical diagonal = 1 inch
 theta_rad = np.radians(theta)
@@ -16,9 +19,12 @@ half_horizontal = s * np.sin(theta_rad / 2)  # half the horizontal diagonal
 # full horizontal diagonal
 horizontal_diag = 2 * half_horizontal  # approx 0.688 inch
 
-# Create figure: set figure size such that spacing is respected
-fig, ax = plt.subplots(
-    figsize=(cols * horizontal_diag, rows * vertical_spacing))
+# Calculate the number of rows and columns to fill the page
+cols = int(np.ceil(page_width / horizontal_diag))
+rows = int(np.ceil(page_height / vertical_spacing))
+
+# Create figure:  Set the figure size to exactly match the page size
+fig, ax = plt.subplots(figsize=(page_width, page_height))
 
 
 def draw_diamond(ax, center_x, center_y):
@@ -43,10 +49,14 @@ for row in range(rows):
 
 # Formatting
 ax.set_aspect('equal')
-# Adjust limits so we see the diamonds properly:
-ax.set_xlim(-half_horizontal, cols * horizontal_diag + half_horizontal)
-ax.set_ylim(-half_vertical, rows * vertical_spacing + half_vertical)
+
+# Adjust limits to tightly fit the diamonds to the page edges:
+ax.set_xlim(0, page_width)
+ax.set_ylim(0, page_height)
+
 ax.axis('off')
 
-plt.savefig("diamond_grid.pdf", format="pdf", bbox_inches="tight")
+# Save the figure, ensuring the bounding box is tight and dpi is reasonable
+plt.savefig("diamond_grid_full_page.pdf", format="pdf",
+            bbox_inches="tight", dpi=300)  # dpi for good resolution
 plt.show()
