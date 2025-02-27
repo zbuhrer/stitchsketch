@@ -32,10 +32,14 @@ def header():
         """
         <style>
         .app-header {
-            padding: 1rem 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        padding: 1rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: #f0f2f6; /* Add a background color */
+        position: sticky; /* Make it sticky */
+        top: 0; /* Stick to the top */
+        z-index: 1000; /* Ensure it stays on top of other elements */
         }
         .app-logo {
             margin-left: 1rem;
@@ -44,28 +48,45 @@ def header():
         .app-title {
             font-size: 1.5rem;
             font-weight: bold;
+            margin-top: 1rem;
+            margin-left: auto;  /* Push title to the center */
+            margin-right: auto; /* Ensure it stays centered */
         }
         .nav-buttons {
             margin-right: 1rem;
+            display: flex;  /* Use flexbox for button layout */
+            gap: 0.5rem;    /* Add some spacing between buttons */
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        f"""
-        <div class="app-header">
-            <div class="app-title">StitchSketch</div>
-            <div class="nav-buttons">
-                <a href="/" target="_self">
-                  <button>Home</button>
-                </a>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Create columns for layout
+    col1, col2, col3 = st.columns([1, 2, 1])  # Adjust column widths as needed
+
+    with col1:
+        with st.container():
+            st.markdown('<div class="nav-buttons">',
+                        unsafe_allow_html=True)  # Open nav-buttons div
+            if st.button(label="Home", key="home_button"):  # Unique key is important!
+                st.session_state.page_name = "Home"
+            # Close nav-buttons div
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="app-title"></div>',
+                    unsafe_allow_html=True)
+
+    # You can add more buttons in col3 if needed.
+    with col3:
+        with st.container():
+            st.markdown('<div class="nav-buttons">',
+                        unsafe_allow_html=True)  # Open nav-buttons div
+            if st.button(label="Settings", key="settings_button"):
+                st.session_state.page_name = "Settings"
+            # Close nav-buttons div
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 def main():

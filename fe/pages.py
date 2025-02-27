@@ -141,36 +141,44 @@ class GalleryPage(Page):
         with account_tab:
             if selected_account_id:
                 account_media_dir = os.path.join(
-                    base_media_dir, selected_account_id)
+                    # Important: Cast to string.
+                    base_media_dir, str(selected_account_id))
 
-                if not os.path.exists(account_media_dir):
-                    st.warning(f"Directory not found: {account_media_dir}")
+                # **CREATE THE DIRECTORY IF IT DOESN'T EXIST**
+                try:
+                    os.makedirs(account_media_dir, exist_ok=True)
+                    # Log the event.  Good for debugging.
+                    print(f"Created directory: {account_media_dir}")
+                except OSError as e:
+                    st.error(f"Error creating directory {
+                             account_media_dir}: {e}")
+                    return  # Stop processing if directory creation fails.
+
+                media_files = glob.glob(os.path.join(
+                    account_media_dir, "*"))  # List all files
+
+                if not media_files:
+                    st.info("No media files found for this account.")
                 else:
-                    media_files = glob.glob(os.path.join(
-                        account_media_dir, "*"))  # List all files
+                    st.subheader(
+                        f"Media for Account ID: {selected_account_id}")
+                    for file_path in media_files:
+                        try:
+                            file_extension = os.path.splitext(
+                                file_path)[1].lower()
 
-                    if not media_files:
-                        st.info("No media files found for this account.")
-                    else:
-                        st.subheader(
-                            f"Media for Account ID: {selected_account_id}")
-                        for file_path in media_files:
-                            try:
-                                file_extension = os.path.splitext(
-                                    file_path)[1].lower()
-
-                                if file_extension in ['.jpg', '.jpeg', '.png']:
-                                    st.image(file_path, caption=os.path.basename(
-                                        file_path), use_column_width=True)
-                                elif file_extension in ['.mp4', '.avi', '.mov']:
-                                    # Set start_time to 0
-                                    st.video(file_path, start_time=0)
-                                else:
-                                    st.warning(f"Unsupported media type: {file_extension} for file {os.path.basename(
-                                        file_path)}")
-                            except Exception as e:
-                                st.error(
-                                    f"Error displaying {os.path.basename(file_path)}: {e}")
+                            if file_extension in ['.jpg', '.jpeg', '.png']:
+                                st.image(file_path, caption=os.path.basename(
+                                    file_path), use_column_width=True)
+                            elif file_extension in ['.mp4', '.avi', '.mov']:
+                                # Set start_time to 0
+                                st.video(file_path, start_time=0)
+                            else:
+                                st.warning(f"Unsupported media type: {file_extension} for file {os.path.basename(
+                                    file_path)}")
+                        except Exception as e:
+                            st.error(
+                                f"Error displaying {os.path.basename(file_path)}: {e}")
             else:
                 st.info("Please select an account from the Accounts page.")
 
