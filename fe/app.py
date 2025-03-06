@@ -1,29 +1,75 @@
 import streamlit as st
 from pages import AccountsPage, GalleryPage, MediaItemPage, HomePage, SettingsPage
-from database import DatabaseConnection  # Import the DatabaseConnection class
+from database import MariaDBConnection, SQLiteConnection  # Import connection classes
+from config_manager import ConfigManager
 import os
 
 
 def initialize_database(db_connection):
     """Creates the accounts table if it doesn't exist and adds some initial accounts."""
-    db_connection.create_accounts_table()
-    if db_connection.get_number_of_accounts() == 0:
-        print("No Accounts")
+    try:
+        with db_connection:  # Use context manager
+            cursor = db_connection.conn.cursor()
+            if isinstance(db_connection, MariaDBConnection):
+                try:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS accounts (
+                            id VARCHAR(255) PRIMARY KEY,
+                            name VARCHAR(255) NOT NULL,
+                            date_entered DATETIME,
+                            date_modified DATETIME,
+                            modified_user_id VARCHAR(255),
+                            created_by VARCHAR(255),
+                            description TEXT,
+                            deleted BOOLEAN,
+                            assigned_user_id VARCHAR(255)
+                        );
+                    """)
+                    db_connection.conn.commit()  # Commit the changes
+                except Exception as e:
+                    st.error(f"Error creating table: {type(e).__name__}: {e}")
+                    st.stop()
+
+                # Check if accounts exist
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM accounts")
+                    result = cursor.fetchone()
+                    if result is None:
+                        count = 0  # Handle the case where fetchone() returns None
+                    else:
+                        # Access the count using the column name.  Handle cases where the column is named "COUNT(*)" or "count".
+                        count = result.get(
+                            'COUNT(*)') or result.get('count') or 0
+
+                    if count == 0:
+                        print("No Accounts")
+
+                except Exception as e:
+                    st.error(
+                        f"Error checking if accounts exist: {type(e).__name__}: {e}")
+                    st.stop()
+
+            elif isinstance(db_connection, SQLiteConnection):
+                # This is the config DB, *not* the accounts DB
+                return  # Don't do anything for SQLite connection
+
+    except Exception as e:
+        st.error(f"Error initializing database: {type(e).__name__}: {e}")
+        st.stop()  # Stop execution if database initialization fails
 
 
-def load_config():
-    """Loads configuration settings.  In a real app, this might read from a file."""
-    config = {
-        'database': {'path': 'database.db'},
-        'media': {'base_path': './media'}  # Default media directory
+def initialize_config(config_manager):
+    """Initializes default configuration values if they don't exist."""
+    default_config = {
+        'database_type': 'mariadb',  # Default to MariaDB
+        'database_path': 'database.db',
+        'media_base_path': './media'
     }
-    return config
 
-
-def save_config(config):
-    """Saves configuration settings.  In a real app, this would write to a file."""
-    # This is a placeholder. In a real application, you would save the config to a file (e.g., JSON, YAML).
-    print("Saving config (placeholder):", config)
+    for key, default_value in default_config.items():
+        if config_manager.get_config(key) is None:
+            config_manager.set_config(key, default_value)
+            print(f"Initialized {key} to default value: {default_value}")
 
 
 def header():
@@ -90,10 +136,33 @@ def header():
 
 
 def main():
+    # Initialize SQLite database for configuration
+    config_manager = ConfigManager("config.db")
+    initialize_config(config_manager)
+
+    # Get database credentials from environment
+    db_host = os.getenv("DB_HOST")
+    db_port = int(os.getenv("DB_PORT", "3306"))
+    db_name = os.getenv("DB_NAME")
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+
+    # Create MariaDB connection - this is now *always* MariaDB, pass values explicitly
+    mariadb_connection = MariaDBConnection(
+        db_host=db_host, db_port=db_port, db_name=db_name, db_user=db_user, db_password=db_password)
+
+    # Initialize the database - creates the account table in MariaDB.
+    initialize_database(mariadb_connection)
+
+    # Ensure the media directory exists.
+    media_path = config_manager.get_config('media_base_path')
+    if media_path:
+        os.makedirs(media_path, exist_ok=True)
+
     # Define initial session state
     initial_state = {
-        'config': load_config(),
-        'db_connection': DatabaseConnection(),
+        'config_manager': config_manager,  # Store the config manager
+        'db_connection': mariadb_connection,  # Store the MariaDB connection instance
         'accounts': [],
         'selected_account_id': None,
         'media_items': [
@@ -110,23 +179,25 @@ def main():
         if key not in st.session_state:
             st.session_state[key] = value
 
-    # Initialize the database with accounts table and initial accounts.
-    initialize_database(st.session_state['db_connection'])
-
-    # React to setting changes.  Consider making this a function.
+    # React to setting changes.
+    if 'new_database_type' in st.session_state:
+        st.session_state['config_manager'].set_config(
+            'database_type', st.session_state['new_database_type'])
+        del st.session_state['new_database_type']
+        st.rerun()
     if 'new_database_path' in st.session_state:
-        st.session_state['config']['database']['path'] = st.session_state['new_database_path']
+        st.session_state['config_manager'].set_config(
+            'database_path', st.session_state['new_database_path'])
         del st.session_state['new_database_path']
+        st.rerun()
     if 'new_base_media_path' in st.session_state:
-        st.session_state['config']['media']['base_path'] = st.session_state['new_base_media_path']
+        st.session_state['config_manager'].set_config(
+            'media_base_path', st.session_state['new_base_media_path'])
         del st.session_state['new_base_media_path']
+        st.rerun()
 
-        # Save config
-        save_config(st.session_state['config'])
-
-    # Sidebar to reload config
+    # Sidebar to reload config - not really needed, but kept for consistency
     if st.sidebar.button("Reload Config"):
-        st.session_state['config'] = load_config()  # Reload configuration
         st.rerun()
 
     # **ADD HEADER HERE**
@@ -148,10 +219,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # Ensure the media directory exists.
-    config = load_config()
-    media_path = config.get('media', {}).get('base_path')
-    if media_path:
-        os.makedirs(media_path, exist_ok=True)
-
     main()

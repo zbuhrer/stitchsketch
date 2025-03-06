@@ -1,20 +1,61 @@
 import pymysql
+import sqlite3
 import os
 from dotenv import load_dotenv
+from abc import ABC, abstractmethod
 
 load_dotenv()  # Load environment variables from .env file
 
+# --- Abstract Base Class for Database Connections ---
 
-class DatabaseConnection:
-    def __init__(self):
-        # Default to localhost
-        self.db_host = os.getenv("DB_HOST", "localhost")
-        self.db_port = int(os.getenv("DB_PORT", "3306"))  # Default to 3306
-        self.db_name = os.getenv("DB_NAME")
-        self.db_user = os.getenv("DB_USER")
-        self.db_password = os.getenv("DB_PASSWORD")
-        self.conn = None
-        self.connect()
+
+class DBConnection(ABC):
+    @abstractmethod
+    def connect(self):
+        pass
+
+    @abstractmethod
+    def disconnect(self):
+        pass
+
+    @abstractmethod
+    def execute_query(self, query, params=None):
+        pass
+
+    @abstractmethod
+    def fetch_all(self, query, params=None):
+        pass
+
+    @abstractmethod
+    def fetch_one(self, query, params=None):
+        pass
+
+    @abstractmethod
+    def get_database_name(self):
+        pass
+
+    @abstractmethod
+    def is_connected(self):
+        pass
+
+    @abstractmethod
+    def __enter__(self):
+        pass
+
+    @abstractmethod
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
+# --- MariaDB Connection Class ---
+class MariaDBConnection(DBConnection):
+    def __init__(self, db_host=None, db_port=3306, db_name=None, db_user=None, db_password=None):
+        self.db_host = db_host or os.getenv("DB_HOST")
+        self.db_port = int(db_port or os.getenv("DB_PORT", "3306"))
+        self.db_name = db_name or os.getenv("DB_NAME")
+        self.db_user = db_user or os.getenv("DB_USER")
+        self.db_password = db_password or os.getenv("DB_PASSWORD")
+        self.conn = None  # Initialize connection attribute
 
     def connect(self):
         try:
@@ -23,13 +64,15 @@ class DatabaseConnection:
                 port=self.db_port,
                 user=self.db_user,
                 password=self.db_password,
-                database=self.db_name
+                database=self.db_name,
+                cursorclass=pymysql.cursors.DictCursor  # Use DictCursor
             )
-            print(f"Connected to MariaDB database: {
-                  self.db_name}@{self.db_host}:{self.db_port}")
+            print(
+                f"Connected to MariaDB database: {self.db_name}@{self.db_host}:{self.db_port}")
         except pymysql.err.Error as e:
             print(f"Error connecting to MariaDB database: {e}")
             self.conn = None
+            raise  # Re-raise the exception for handling upstream
 
     def disconnect(self):
         if self.conn:
@@ -42,22 +85,9 @@ class DatabaseConnection:
     def get_database_name(self):
         return self.db_name
 
-    def get_number_of_accounts(self):
-        if not self.conn:
-            return 0
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM accounts")
-            count = cursor.fetchone()[0]
-            return count
-        except pymysql.err.Error as e:
-            print(f"Error fetching account count: {e}")
-            return 0
-
     def execute_query(self, query, params=None):
         if not self.conn:
-            print("Not connected to the database.")
-            return None
+            raise Exception("Not connected to the database.")
 
         try:
             cursor = self.conn.cursor()
@@ -66,50 +96,188 @@ class DatabaseConnection:
             else:
                 cursor.execute(query)
             self.conn.commit()
-            return cursor.fetchall()
-        except pymysql.err.Error as e:
+        except pymysql.err.Error as e:  # Changed sqlite3.Error to pymysql.err.Error
             print(f"Error executing query: {e}")
-            return None
+            if self.conn:
+                self.conn.rollback()  # Rollback on error
+            raise  # Re-raise the exception
 
-    # Example usage (can be removed later)
-    def create_accounts_table(self):
+    def fetch_all(self, query, params=None):
+        if not self.conn:
+            raise Exception("Not connected to the database.")
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.fetchall()
+        except pymysql.err.Error as e:
+            print(f"Error fetching data: {e}")
+            raise
+
+    def fetch_one(self, query, params=None):
+        if not self.conn:
+            raise Exception("Not connected to the database.")
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.fetchone()
+        except pymysql.err.Error as e:
+            print(f"Error fetching data: {e}")
+            raise
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
+# --- SQLite Connection Class ---
+
+
+class SQLiteConnection(DBConnection):
+    def __init__(self, db_path):
+        self.db_path = db_path
+        self.conn = None  # Initialize connection attribute
+
+    def connect(self):
+        try:
+            self.conn = sqlite3.connect(self.db_path)
+            # Use Row factory to access columns by name
+            self.conn.row_factory = sqlite3.Row
+            print(f"Connected to SQLite database: {self.db_path}")
+        except sqlite3.Error as e:
+            print(f"Error connecting to SQLite database: {e}")
+            self.conn = None
+            raise  # Re-raise the exception
+
+    def disconnect(self):
+        if self.conn:
+            self.conn.close()
+            self.conn = None
+
+    def is_connected(self):
+        return self.conn is not None
+
+    def get_database_name(self):
+        return self.db_path  # For SQLite, the path is the "name"
+
+    def execute_query(self, query, params=None):
+        if not self.conn:
+            raise Exception("Not connected to the database.")
+
+        try:
+            cursor = self.conn.cursor()
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            self.conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error executing query: {e}")
+            if self.conn:
+                self.conn.rollback()  # Rollback on error
+            raise  # Re-raise the exception
+
+    def fetch_all(self, query, params=None):
+        if not self.conn:
+            raise Exception("Not connected to the database.")
+
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        except sqlite3.Error as e:
+            print(f"Error fetching data: {e}")
+            raise  # Re-raise the exception
+
+    def fetch_one(self, query, params=None):
+        if not self.conn:
+            raise Exception("Not connected to the database.")
+
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(query, params)
+            return cursor.fetchone()
+        except sqlite3.Error as e:
+            print(f"Error fetching data: {e}")
+            raise  # Re-raise the exception
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
+    def create_config_table(self):
+        """Creates the config table in the SQLite database if it doesn't exist."""
         query = """
-        CREATE TABLE IF NOT EXISTS accounts (
-            id VARCHAR(255) PRIMARY KEY,
-            name VARCHAR(255) NOT NULL
-        );
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
         """
-        self.execute_query(query)
+        try:
+            self.execute_query(query)
+            print("Config table created successfully.")
+        except Exception as e:
+            print(f"Error creating config table: {e}")
+            raise
 
-    def insert_account(self, id, name):
-        query = "INSERT INTO accounts (id, name) VALUES (%s, %s)"
-        self.execute_query(query, (id, name))
+    def get_config_value(self, key):
+        """Retrieves a configuration value from the SQLite database."""
+        query = "SELECT value FROM config WHERE key = ?"
+        try:
+            result = self.fetch_one(query, (key,))
+            if result:
+                return result['value']  # Access value by name
+            else:
+                return None
+        except Exception as e:
+            print(f"Error getting config value for key {key}: {e}")
+            raise
 
-    def fetch_all_accounts(self):
-        query = "SELECT id, name FROM accounts"
-        return self.execute_query(query)
-
-    def fetch_account(self, account_id):
-        query = "SELECT id, name FROM accounts WHERE id = %s"
-        result = self.execute_query(query, (account_id,))
-        if result:
-            return result[0]  # Return the first (and only) row
-        else:
-            return None
+    def set_config_value(self, key, value):
+        """Sets a configuration value in the SQLite database."""
+        query = "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)"
+        try:
+            self.execute_query(query, (key, value))
+            print(f"Config value set successfully for key {key}.")
+        except Exception as e:
+            print(f"Error setting config value for key {key}: {e}")
+            raise
 
 
-# Example usage:
+# --- Example Usage ---
 if __name__ == '__main__':
-    db_connection = DatabaseConnection()
-    db_connection.create_accounts_table()
-    db_connection.insert_account("1", "Test Account 1")
-    db_connection.insert_account("2", "Test Account 2")
+    # MariaDB Example
+    try:
+        with MariaDBConnection() as db:
+            db.execute_query(
+                "CREATE TABLE IF NOT EXISTS test (id INT, name VARCHAR(255))")
+            db.execute_query(
+                "INSERT INTO test (id, name) VALUES (%s, %s)", (1, "Test MariaDB"))
+            result = db.fetch_all("SELECT * FROM test")
+            print("MariaDB Result:", result)
+    except Exception as e:
+        print("MariaDB Error:", e)
 
-    accounts = db_connection.fetch_all_accounts()
-    if accounts:
-        for account in accounts:
-            print(f"Account ID: {account[0]}, Name: {account[1]}")
-    else:
-        print("No accounts found.")
+    # SQLite Example
+    try:
+        with SQLiteConnection("test.db") as db:
+            db.execute_query(
+                "CREATE TABLE IF NOT EXISTS test (id INT, name TEXT)")
+            db.execute_query(
+                "INSERT INTO test (id, name) VALUES (?, ?)", (1, "Test SQLite"))
+            result = db.fetch_all("SELECT * FROM test")
+            print("SQLite Result:", result)
 
-    db_connection.disconnect()
+        # Config Table Example
+        with SQLiteConnection("test.db") as db:
+            db.create_config_table()
+            db.set_config_value("base_media_path", "./media")
+            base_media_path = db.get_config_value("base_media_path")
+            print("Base Media Path from Config:", base_media_path)
+
+    except Exception as e:
+        print("SQLite Error:", e)

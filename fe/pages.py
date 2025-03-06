@@ -3,6 +3,9 @@ import os
 import glob
 from abc import ABC, abstractmethod
 import io  # For working with BytesIO objects
+from models import Account  # Import the Account model
+from database import DBConnection, MariaDBConnection  # Import MariaDBConnection
+from typing import List, Optional
 
 
 class Page(ABC):
@@ -44,7 +47,7 @@ class AccountsPage(Page):
         st.header("Accounts Management")
         st.write("Select an account to view its gallery.")
 
-        db_connection = st.session_state.get('db_connection')
+        db_connection: DBConnection = st.session_state.get('db_connection')
 
         if not db_connection or not db_connection.is_connected():
             st.error("Not connected to the database.")
@@ -53,46 +56,50 @@ class AccountsPage(Page):
         # Database Information
         db_name = db_connection.get_database_name()
         is_connected = db_connection.is_connected()
-        num_accounts = db_connection.get_number_of_accounts()
 
         st.subheader("Database Information")
         st.write(f"Database Name: {db_name}")
-        st.write(f"Connection Status: {
-                 'Connected' if is_connected else 'Disconnected'}")
-        st.write(f"Number of Accounts: {num_accounts}")
+        status = "Connected" if is_connected else "Disconnected"
+        st.write(f"Connection Status: {status}")
 
         # Account Listing
         st.subheader("Accounts List")
-        accounts = db_connection.fetch_all_accounts()
 
-        if accounts:
-            # Add a form for each row to make it clickable
-            for i, account in enumerate(accounts):
-                account_id = account[0]  # Get the account_id
-                account_name = account[1]
-                with st.form(key=f'account_form_{i}'):
-                    # Display only the name
-                    st.write(f"Account Name: {account_name}")
-                    submit_button = st.form_submit_button(label='Select')
-                    if submit_button:
-                        st.session_state['selected_account_id'] = account_id
-                        st.session_state.page_name = "Gallery"
-                        st.rerun()
-        else:
-            st.write("No accounts found.")
+        try:
+            if not isinstance(db_connection, MariaDBConnection):
+                st.error(
+                    "Accounts must be fetched from a MariaDB connection.")
+                return
+
+            # Fetch accounts using the model
+            accounts: List[Account] = Account.fetch_all(db_connection)
+            if accounts:
+                for account in accounts:
+                    # Use account.id
+                    with st.form(key=f'account_form_{account.id}'):
+                        st.write(f"Account Name: {account.name}")
+                        submit_button = st.form_submit_button(label='Select')
+                        if submit_button:
+                            st.session_state['selected_account_id'] = account.id
+                            st.session_state.page_name = "Gallery"
+                            st.rerun()
+            else:
+                st.write("No accounts found.")
+        except Exception as e:
+            st.error(f"Error fetching accounts: {e}")
 
     def required_state_keys(self):
-        return []
+        return ['db_connection']  # Ensure the database connection is available
 
 
 class GalleryPage(Page):
     def render(self):
         st.header("Gallery")
 
-        config = st.session_state.get('config', {})
-        base_media_dir = config.get('media', {}).get('base_path', None)
+        config_manager = st.session_state.get('config_manager')
+        base_media_dir = config_manager.get_config('media_base_path')
         selected_account_id = st.session_state.get('selected_account_id')
-        db_connection = st.session_state.get('db_connection')
+        db_connection: DBConnection = st.session_state.get('db_connection')
 
         if not base_media_dir:
             st.error(
@@ -100,16 +107,18 @@ class GalleryPage(Page):
             return
 
         # Determine the account name for the tab title
+        selected_account_name = "Select Account"  # Default value
         if selected_account_id:
-            # Fetch the account from the database using the selected_account_id
-            account = db_connection.fetch_account(selected_account_id)
-            if account:
-                # Assuming account[1] is the name
-                selected_account_name = account[1]
-            else:
-                selected_account_name = "Unknown Account"
-        else:
-            selected_account_name = "Select Account"
+            try:
+                account: Optional[Account] = Account.get_account_by_id(
+                    db_connection, selected_account_id)
+                if account:
+                    selected_account_name = account.name
+                else:
+                    st.warning(
+                        f"Account with ID {selected_account_id} not found.")
+            except Exception as e:
+                st.error(f"Error fetching account: {e}")
 
         # Create tabs
         all_tab, account_tab = st.tabs(["All", selected_account_name])
@@ -136,16 +145,17 @@ class GalleryPage(Page):
                         elif file_extension in ['.mp4', '.avi', '.mov']:
                             st.video(file_path, start_time=0)
                         else:
-                            st.warning(f"Unsupported media type: {file_extension} for file {os.path.basename(
-                                file_path)}")
+                            filename = os.path.basename(file_path)
+                            st.warning(
+                                f"Unsupported media type: {file_extension} for file {filename}")
                     except Exception as e:
-                        st.error(
-                            f"Error displaying {os.path.basename(file_path)}: {e}")
+                        filename = os.path.basename(file_path)
+                        st.error(f"Error displaying {filename}: {e}")
 
         with account_tab:
             if selected_account_id:
+                # Ensure account_id is a string
                 account_media_dir = os.path.join(
-                    # Ensure account_id is a string
                     base_media_dir, str(selected_account_id))
 
                 # Ensure the account directory exists
@@ -201,8 +211,8 @@ class GalleryPage(Page):
                 if not media_files:
                     st.info("No media files found for this account.")
                 else:
-                    st.subheader(f"Media for Account ID: {
-                                 selected_account_id}")
+                    st.subheader(f"Media for Account ID: {selected_account_id}"
+                                 )
                     for file_path in media_files:
                         try:
                             file_extension = os.path.splitext(file_path)[
@@ -214,17 +224,18 @@ class GalleryPage(Page):
                             elif file_extension in ['.mp4', '.avi', '.mov']:
                                 st.video(file_path, start_time=0)
                             else:
-                                st.warning(f"Unsupported media type: {file_extension} for file {
-                                           os.path.basename(file_path)}")
+                                filename = os.path.basename(file_path)
+                                st.warning(
+                                    f"Unsupported media type: {file_extension} for file {filename}")
                         except Exception as e:
-                            st.error(f"Error displaying {
-                                     os.path.basename(file_path)}: {e}")
+                            filename = os.path.basename(file_path)
+                            st.error(f"Error displaying {filename}: {e}")
 
             else:
                 st.info("Please select an account from the Accounts page.")
 
     def required_state_keys(self):
-        return ['config', 'selected_account_id']
+        return ['config_manager', 'selected_account_id', 'db_connection']
 
 
 class MediaItemPage(Page):
@@ -240,20 +251,18 @@ class SettingsPage(Page):
     def render(self):
         st.header("Settings")
 
+        config_manager = st.session_state.get('config_manager')
+
         with st.form("settings_form"):
-            # Get the current database path from the config
-            current_database_path = st.session_state.get(
-                'config', {}).get('database', {}).get('path', '')
-
+            # Database settings
+            db_type = st.selectbox("Database Type", options=[
+                'sqlite', 'mariadb'], index=['sqlite', 'mariadb'].index(config_manager.get_config('database_type', 'sqlite')))
             new_database_path = st.text_input(
-                "Database Path", value=current_database_path)
+                "Database Path", value=config_manager.get_config('database_path', 'database.db'))
 
-            # Get the current base_media_path from the config
-            current_base_media_path = st.session_state.get(
-                'config', {}).get('media', {}).get('base_path', '')
-
+            # Media settings
             new_base_media_path = st.text_input(
-                "Base Media Path", value=current_base_media_path)
+                "Base Media Path", value=config_manager.get_config('media_base_path', './media'))
 
             submitted = st.form_submit_button("Save Changes")
 
@@ -267,9 +276,9 @@ class SettingsPage(Page):
                     st.error("Base media path cannot be empty.")
                 elif not isinstance(new_base_media_path, str):
                     st.error("Database path must be a string.")
-                # Removed file exists test, as it might not exist on the server
                 else:
-                    # Update the session state (the actual writing to the config will happen in app.py)
+                    # Update the session state
+                    st.session_state['new_database_type'] = db_type
                     st.session_state['new_database_path'] = new_database_path
                     st.session_state['new_base_media_path'] = new_base_media_path
 
@@ -277,4 +286,5 @@ class SettingsPage(Page):
                         "Settings saved!  Click the 'Reload Config' button in the sidebar to apply changes.")
 
     def required_state_keys(self):
-        return ['config']  # Ensure the config is loaded before rendering
+        # Ensure the config manager is loaded before rendering
+        return ['config_manager']
