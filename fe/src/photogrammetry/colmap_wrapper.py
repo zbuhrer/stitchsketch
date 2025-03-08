@@ -5,6 +5,8 @@ import shutil
 from pathlib import Path
 from typing import Optional
 import logging
+import os
+import streamlit as st  # Import streamlit
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,
@@ -39,13 +41,15 @@ def run_colmap(
         COLMAPError: If any COLMAP command fails.
     """
 
-    # Ensure paths are Path objects
-    image_dir = Path(image_dir)
-    database_path = Path(database_path)
-    sparse_dir = Path(sparse_dir)
+    # --- HARDCODED PATHS FOR TESTING (TASK 1.1) - REMOVE LATER ---
+    image_dir = os.path.join(st.session_state.user_data_dir, "images")
+    database_path = os.path.join(st.session_state.user_data_dir, "database.db")
+    sparse_dir = os.path.join(st.session_state.user_data_dir, "sparse")
+    logging.info(f"Using hardcoded paths for testing: image_dir={image_dir}, database_path={database_path}, sparse_dir={sparse_dir}")
+    # --------------------------------------------------------------
 
     # Create sparse directory if it doesn't exist
-    sparse_dir.mkdir(parents=True, exist_ok=True)
+    os.makedirs(sparse_dir, exist_ok=True)
 
     # Feature extraction settings
     feature_extractor_args = ["--ImageReader.camera_model", camera_model]
@@ -74,9 +78,9 @@ def run_colmap(
                 "colmap",
                 "feature_extractor",
                 "--database_path",
-                str(database_path),
+                database_path,
                 "--image_path",
-                str(image_dir),
+                image_dir,
                 *feature_extractor_args
             ],
         ),
@@ -86,7 +90,7 @@ def run_colmap(
                 "colmap",
                 "matcher",
                 "--database_path",
-                str(database_path),
+                database_path,
                 *feature_matcher_args
             ],
         ),
@@ -96,11 +100,11 @@ def run_colmap(
                 "colmap",
                 "map_creator",
                 "--database_path",
-                str(database_path),
+                database_path,
                 "--image_path",
-                str(image_dir),
+                image_dir,
                 "--output_path",
-                str(sparse_dir),
+                sparse_dir,
             ],
         ),
         (
@@ -109,11 +113,11 @@ def run_colmap(
                 "colmap",
                 "bundle_adjuster",
                 "--input_path",
-                str(sparse_dir / "0"),
+                os.path.join(sparse_dir, "0"),
                 "--output_path",
-                str(sparse_dir / "0"),
+                os.path.join(sparse_dir, "0"),
                 "--database_path",
-                str(database_path),
+                database_path,
             ],
         ),
         (
@@ -122,11 +126,11 @@ def run_colmap(
                 "colmap",
                 "mapper",
                 "--database_path",
-                str(database_path),
+                database_path,
                 "--image_path",
-                str(image_dir),
+                image_dir,
                 "--output_path",
-                str(sparse_dir),
+                sparse_dir,
                 "--Mapper.init_ba_refine_focal_length",
                 "1",
                 "--Mapper.ba_refine_principal_point",
@@ -141,9 +145,9 @@ def run_colmap(
                 "colmap",
                 "model_merger",
                 "--input_path",
-                str(sparse_dir),
+                sparse_dir,
                 "--output_path",
-                str(sparse_dir / "merged"),
+                os.path.join(sparse_dir, "merged"),
             ],
         ),
         (
@@ -152,11 +156,11 @@ def run_colmap(
                 "colmap",
                 "bundle_adjuster",
                 "--input_path",
-                str(sparse_dir / "merged"),
+                os.path.join(sparse_dir, "merged"),
                 "--output_path",
-                str(sparse_dir / "merged"),
+                os.path.join(sparse_dir, "merged"),
                 "--database_path",
-                str(database_path),
+                database_path,
             ],
         ),
         (
@@ -165,11 +169,11 @@ def run_colmap(
                 "colmap",
                 "model_filterer",
                 "--input_path",
-                str(sparse_dir / "merged"),
+                os.path.join(sparse_dir, "merged"),
                 "--output_path",
-                str(sparse_dir / "filtered"),
+                os.path.join(sparse_dir, "filtered"),
                 "--database_path",
-                str(database_path),
+                database_path,
             ],
         ),
         (
@@ -178,11 +182,11 @@ def run_colmap(
                 "colmap",
                 "point_triangulator",
                 "--input_path",
-                str(sparse_dir / "filtered"),
+                os.path.join(sparse_dir, "filtered"),
                 "--output_path",
-                str(sparse_dir / "filtered"),
+                os.path.join(sparse_dir, "filtered"),
                 "--database_path",
-                str(database_path),
+                database_path,
             ],
         ),
         (
@@ -191,11 +195,11 @@ def run_colmap(
                 "colmap",
                 "model_aligner",
                 "--input_path",
-                str(sparse_dir / "filtered"),
+                os.path.join(sparse_dir, "filtered"),
                 "--output_path",
-                str(sparse_dir / "aligned"),
+                os.path.join(sparse_dir, "aligned"),
                 "--ref_images_path",
-                str(image_dir)
+                image_dir
             ],
         ),
         (
@@ -204,9 +208,9 @@ def run_colmap(
                 "colmap",
                 "model_converter",
                 "--input_path",
-                str(sparse_dir / "aligned"),
+                os.path.join(sparse_dir, "aligned"),
                 "--output_path",
-                str(sparse_dir / "aligned" / "model.ply"),
+                os.path.join(sparse_dir, "aligned", "model.ply"),
                 "--output_type",
                 "PLY"
             ],
@@ -232,14 +236,14 @@ def run_colmap(
 
 def create_empty_colmap_database(database_path: str) -> None:
     """Creates an empty COLMAP database."""
-    database_path = Path(database_path)
-    if database_path.exists():
-        database_path.unlink()  # Remove existing database
+    database_path_path = Path(database_path)
+    if database_path_path.exists():
+        database_path_path.unlink()  # Remove existing database
 
     try:
         subprocess.run(
             ["colmap", "database_creator",
-                "--database_path", str(database_path)],
+                "--database_path", database_path],
             check=True,
             capture_output=True,
             text=True,
@@ -258,15 +262,15 @@ def get_number_of_registered_images(sparse_dir: str) -> int:
     Returns:
         The number of registered images.
     """
-    sparse_dir = Path(sparse_dir)
-    cameras_path = sparse_dir / "cameras.txt"
-    images_path = sparse_dir / "images.txt"
+    sparse_dir_path = Path(sparse_dir)
+    cameras_path = sparse_dir_path / "cameras.txt"
+    images_path = sparse_dir_path / "images.txt"
 
     if not cameras_path.exists() or not images_path.exists():
         return 0
 
     num_registered_images = 0
-    with open(images_path, "r") as f:
+    with open(str(images_path), "r") as f:
         for line in f:
             if line.startswith("#"):
                 continue
@@ -293,15 +297,15 @@ def estimate_sparsity(sparse_dir: str) -> float:
     Returns:
         The sparsity of the model (percentage of unregistered points).
     """
-    sparse_dir = Path(sparse_dir)
-    points3D_path = sparse_dir / "points3D.txt"
+    sparse_dir_path = Path(sparse_dir)
+    points3D_path = sparse_dir_path / "points3D.txt"
 
     if not points3D_path.exists():
         return 1.0  # Assume completely sparse if no points
 
     total_points = 0
     registered_points = 0
-    with open(points3D_path, "r") as f:
+    with open(str(points3D_path), "r") as f:
         for line in f:
             if line.startswith("#"):
                 continue
@@ -327,17 +331,17 @@ def copy_colmap_model(src_dir: str, dst_dir: str) -> None:
         src_dir: Path to the source directory containing the COLMAP model.
         dst_dir: Path to the destination directory.
     """
-    src_dir = Path(src_dir)
-    dst_dir = Path(dst_dir)
+    src_dir_path = Path(src_dir)
+    dst_dir_path = Path(dst_dir)
 
-    dst_dir.mkdir(parents=True, exist_ok=True)
+    os.makedirs(dst_dir, exist_ok=True)
 
     files_to_copy = ["cameras.txt", "images.txt", "points3D.txt"]
     for file in files_to_copy:
-        src_file = src_dir / file
-        dst_file = dst_dir / file
+        src_file = src_dir_path / file
+        dst_file = dst_dir_path / file
         if src_file.exists():
-            shutil.copy(src_file, dst_file)
+            shutil.copy(str(src_file), str(dst_file))
 
 
 def delete_colmap_model(model_dir: str) -> None:
@@ -347,6 +351,6 @@ def delete_colmap_model(model_dir: str) -> None:
     Args:
         model_dir: Path to the directory containing the COLMAP model.
     """
-    model_dir = Path(model_dir)
-    if model_dir.exists():
+    model_dir_path = Path(model_dir)
+    if model_dir_path.exists():
         shutil.rmtree(model_dir)
