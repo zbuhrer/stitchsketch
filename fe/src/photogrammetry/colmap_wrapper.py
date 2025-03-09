@@ -3,10 +3,10 @@
 import subprocess
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 import logging
 import os
-import streamlit as st  # Import streamlit
+import tempfile
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,
@@ -24,7 +24,8 @@ def run_colmap(
     sparse_dir: str,
     feature_type: str = "sift",
     vocab_tree_path: Optional[str] = None,
-    camera_model: str = "perspective",
+    camera_model: str = "SIMPLE_RADIAL",
+    progress_callback: Optional[Callable[[float, str], None]] = None,
 ) -> None:
     """
     Runs the COLMAP pipeline.
@@ -36,218 +37,126 @@ def run_colmap(
         feature_type: Feature type to use (e.g., "sift", "orb").
         vocab_tree_path: Path to the vocabulary tree file (required for vocab_tree matching).
         camera_model: Camera model to use (e.g., "perspective", "radial").
+        progress_callback: Optional callback function to report progress.  Takes a float (0-100) and a message string.
 
     Raises:
         COLMAPError: If any COLMAP command fails.
     """
 
-    # --- HARDCODED PATHS FOR TESTING (TASK 1.1) - REMOVE LATER ---
-    image_dir = os.path.join(st.session_state.user_data_dir, "images")
-    database_path = os.path.join(st.session_state.user_data_dir, "database.db")
-    sparse_dir = os.path.join(st.session_state.user_data_dir, "sparse")
-    logging.info(f"Using hardcoded paths for testing: image_dir={image_dir}, database_path={database_path}, sparse_dir={sparse_dir}")
-    # --------------------------------------------------------------
+    # Create temporary directory for COLMAP processing
+    with tempfile.TemporaryDirectory() as colmap_temp_dir:
+        colmap_temp_path = Path(colmap_temp_dir)
 
-    # Create sparse directory if it doesn't exist
-    os.makedirs(sparse_dir, exist_ok=True)
+        # Use the temporary directory for the database and sparse reconstruction
+        database_path = str(colmap_temp_path / "colmap.db")
+        sparse_dir = str(colmap_temp_path / "sparse")
 
-    # Feature extraction settings
-    feature_extractor_args = ["--ImageReader.camera_model", camera_model]
-    if feature_type == "sift":
-        pass  # Use default SIFT settings
-    elif feature_type == "orb":
-        feature_extractor_args += ["--SiftExtraction.use_gpu", "0",  # Disable GPU for more consistent operation
-                                   "--SiftExtraction.num_octaves", "3",
-                                   "--SiftExtraction.first_octave", "0",
-                                   "--SiftExtraction.peak_threshold", "0.01",
-                                   "--SiftExtraction.edge_threshold", "10"]
-    else:
-        raise ValueError(f"Unsupported feature type: {feature_type}")
+        # Create sparse directory if it doesn't exist
+        os.makedirs(sparse_dir, exist_ok=True)
 
-    # Feature matching settings
-    feature_matcher_args = []
-    if vocab_tree_path:
-        feature_matcher_args += ["--VocabTreeMatching.vocab_tree_path",
-                                 str(vocab_tree_path)]
+        # Feature extraction settings
+        feature_extractor_args = ["--ImageReader.camera_model", camera_model]
+        if feature_type == "sift":
+            pass  # Use default SIFT settings
+        elif feature_type == "orb":
+            feature_extractor_args += ["--SiftExtraction.use_gpu", "0",  # Disable GPU for more consistent operation
+                                    "--SiftExtraction.num_octaves", "3",
+                                    "--SiftExtraction.first_octave", "0",
+                                    "--SiftExtraction.peak_threshold", "0.01",
+                                    "--SiftExtraction.edge_threshold", "10"]
+        else:
+            raise ValueError(f"Unsupported feature type: {feature_type}")
 
-    # COLMAP commands
-    commands = [
-        (
-            "Feature extraction",
-            [
-                "colmap",
-                "feature_extractor",
-                "--database_path",
-                database_path,
-                "--image_path",
-                image_dir,
-                *feature_extractor_args
-            ],
-        ),
-        (
-            "Vocabulary tree matching" if vocab_tree_path else "Sequential matching",
-            [
-                "colmap",
-                "matcher",
-                "--database_path",
-                database_path,
-                *feature_matcher_args
-            ],
-        ),
-        (
-            "Map creation",
-            [
-                "colmap",
-                "map_creator",
-                "--database_path",
-                database_path,
-                "--image_path",
-                image_dir,
-                "--output_path",
-                sparse_dir,
-            ],
-        ),
-        (
-            "Bundle adjustment",
-            [
-                "colmap",
-                "bundle_adjuster",
-                "--input_path",
-                os.path.join(sparse_dir, "0"),
-                "--output_path",
-                os.path.join(sparse_dir, "0"),
-                "--database_path",
-                database_path,
-            ],
-        ),
-        (
-            "Mapper",
-            [
-                "colmap",
-                "mapper",
-                "--database_path",
-                database_path,
-                "--image_path",
-                image_dir,
-                "--output_path",
-                sparse_dir,
-                "--Mapper.init_ba_refine_focal_length",
-                "1",
-                "--Mapper.ba_refine_principal_point",
-                "1",
-                "--Mapper.ba_refine_extra_params",
-                "1"
-            ],
-        ),
-        (
-            "Merge models",
-            [
-                "colmap",
-                "model_merger",
-                "--input_path",
-                sparse_dir,
-                "--output_path",
-                os.path.join(sparse_dir, "merged"),
-            ],
-        ),
-        (
-            "Bundle adjustment (merged)",
-            [
-                "colmap",
-                "bundle_adjuster",
-                "--input_path",
-                os.path.join(sparse_dir, "merged"),
-                "--output_path",
-                os.path.join(sparse_dir, "merged"),
-                "--database_path",
-                database_path,
-            ],
-        ),
-        (
-            "Model filtering",
-            [
-                "colmap",
-                "model_filterer",
-                "--input_path",
-                os.path.join(sparse_dir, "merged"),
-                "--output_path",
-                os.path.join(sparse_dir, "filtered"),
-                "--database_path",
-                database_path,
-            ],
-        ),
-        (
-            "Point triangulation",
-            [
-                "colmap",
-                "point_triangulator",
-                "--input_path",
-                os.path.join(sparse_dir, "filtered"),
-                "--output_path",
-                os.path.join(sparse_dir, "filtered"),
-                "--database_path",
-                database_path,
-            ],
-        ),
-        (
-            "Model aligning",
-            [
-                "colmap",
-                "model_aligner",
-                "--input_path",
-                os.path.join(sparse_dir, "filtered"),
-                "--output_path",
-                os.path.join(sparse_dir, "aligned"),
-                "--ref_images_path",
-                image_dir
-            ],
-        ),
-        (
-            "Model to ply",
-            [
-                "colmap",
-                "model_converter",
-                "--input_path",
-                os.path.join(sparse_dir, "aligned"),
-                "--output_path",
-                os.path.join(sparse_dir, "aligned", "model.ply"),
-                "--output_type",
-                "PLY"
-            ],
-        ),
-    ]
+        # Feature matching settings
+        feature_matcher_args = []
+        if vocab_tree_path:
+            feature_matcher_args += ["--VocabTreeMatching.vocab_tree_path",
+                                    str(vocab_tree_path)]
+            matcher_command = "vocab_tree_matcher"
+        else:
+            matcher_command = "exhaustive_matcher"
 
-    # Execute COLMAP commands
-    for name, command in commands:
-        logging.info(f"Running COLMAP command: {name}")
-        logging.info(f"Command: {' '.join(command)}")  # Log the full command
-        try:
+        # COLMAP commands
+        commands = [
+            (
+                "Feature extraction",
+                [
+                    "colmap",
+                    "feature_extractor",
+                    "--database_path",
+                    database_path,
+                    "--image_path",
+                    image_dir,
+                    *feature_extractor_args
+                ],
+            ),
+            (
+                "Vocabulary tree matching" if vocab_tree_path else "Sequential matching",
+                [
+                    "colmap",
+                    matcher_command,
+                    "--database_path",
+                    database_path,
+                    *feature_matcher_args
+                ],
+            ),
+            (
+                "Map creation",
+                [
+                    "colmap",
+                    "mapper",
+                    "--database_path",
+                    database_path,
+                    "--image_path",
+                    image_dir,
+                    "--output_path",
+                    sparse_dir,
+                ],
+            ),
+            (
+                "Model to ply",
+                [
+                    "colmap",
+                    "model_converter",
+                    "--input_path",
+                    os.path.join(sparse_dir, "0"),
+                    "--output_path",
+                    os.path.join(sparse_dir, "model.ply"),
+                    "--output_type",
+                    "PLY"
+                ],
+            ),
+        ]
+
+        # Execute COLMAP commands
+        for name, command in commands:
+            logging.info(f"Running COLMAP command: {name}")
+            logging.info(f"Command: {' '.join(command)}")  # Log the full command
             result = subprocess.run(
                 command,
-                check=True,
                 capture_output=True,
                 text=True,
             )
+            if result.returncode != 0:
+                logging.error(result.stderr)  # Log standard error
+                raise COLMAPError(
+                    f"COLMAP command '{name}' failed with return code {result.returncode}: {result.stderr}")
             logging.info(result.stdout)  # Log standard output
-        except subprocess.CalledProcessError as e:
-            logging.error(e.stderr)  # Log standard error
-            raise COLMAPError(f"COLMAP command '{name}' failed: {e}")
 
 
 def create_empty_colmap_database(database_path: str) -> None:
     """Creates an empty COLMAP database."""
-    database_path_path = Path(database_path)
-    if database_path_path.exists():
-        database_path_path.unlink()  # Remove existing database
-
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["colmap", "database_creator",
                 "--database_path", database_path],
-            check=True,
             capture_output=True,
             text=True,
         )
+        if result.returncode != 0:
+            raise COLMAPError(
+                f"Failed to create empty COLMAP database: {result.stderr}")
+
     except subprocess.CalledProcessError as e:
         raise COLMAPError(f"Failed to create empty COLMAP database: {e}")
 

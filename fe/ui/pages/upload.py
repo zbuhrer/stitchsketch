@@ -1,12 +1,14 @@
 import streamlit as st
-import os
-from pathlib import Path
 from src.photogrammetry.video_extractor import extract_frames
 
 
 def show():
     """Display the upload page"""
     st.header("Upload Images or Video")
+
+    # Initialize current_page in session state (if not already present)
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "Upload Images/Video"
 
     # File uploader for images
     uploaded_images = st.file_uploader(
@@ -64,22 +66,28 @@ def process_video_upload(uploaded_video):
     """Process uploaded video file"""
     user_img_dir = st.session_state.user_data_dir / "images"
     video_path = user_img_dir / uploaded_video.name
+    video_processed_key = f"video_processed_{uploaded_video.name}"  # Unique key, in case of multiple videos
 
-    # Save video to temp directory
-    with open(video_path, "wb") as f:
-        f.write(uploaded_video.getbuffer())
+    # Check if the video has already been processed
+    if video_processed_key not in st.session_state:
+        # Save video to temp directory
+        with open(video_path, "wb") as f:
+            f.write(uploaded_video.getbuffer())
 
-    # Extract frames
-    with st.spinner("Extracting frames from video..."):
-        extracted_frames = extract_frames(
-            str(video_path),
-            str(user_img_dir),
-            fps=1  # Extract 1 frame per second
-        )
+        # Extract frames
+        with st.spinner("Extracting frames from video..."):
+            extracted_frames = extract_frames(
+                str(video_path),
+                str(user_img_dir),
+                fps=1  # Extract 1 frame per second
+            )
 
-    # Add extracted frames to session state
-    for frame_path in extracted_frames:
-        if frame_path not in st.session_state.uploaded_files:
-            st.session_state.uploaded_files.append(frame_path)
+        # Add extracted frames to session state
+        for frame_path in extracted_frames:
+            if frame_path not in st.session_state.uploaded_files:
+                st.session_state.uploaded_files.append(frame_path)
 
-    st.success(f"Extracted {len(extracted_frames)} frames from video")
+        st.success(f"Extracted {len(extracted_frames)} frames from video")
+        st.session_state[video_processed_key] = True  # Mark as processed
+    else:
+        st.info(f"Video {uploaded_video.name} already processed.")
