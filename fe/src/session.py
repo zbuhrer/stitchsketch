@@ -41,8 +41,6 @@ def initialize_session():
 
 def cleanup_session():
     """Clean up session data when session ends"""
-    if "user_data_dir" in st.session_state:
-        try:
-            shutil.rmtree(st.session_state.user_data_dir)
-        except Exception as e:
-            print(f"Error cleaning up session data: {e}")
+    # No need to delete the user_data_dir, since this is where persistent data goes
+    # Old reconstruction dirs can be cleaned up periodically (not implemented here)
+    pass

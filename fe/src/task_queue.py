@@ -4,6 +4,12 @@ import queue
 import time
 import uuid
 from typing import Dict, Any, List, Optional, Callable
+import logging
+import os
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Global task queue
 task_queue = queue.Queue()
@@ -34,6 +40,7 @@ def submit_task(func: Callable, args: List, kwargs: Dict[str, Any]) -> str:
         task_id: Unique ID for tracking the task
     """
     task_id = generate_task_id()
+    logging.info(f"Submitting task with id: {task_id}, function: {func.__name__}")
 
     with status_lock:
         task_status[task_id] = {
@@ -59,6 +66,7 @@ def update_task_status(task_id: str, status: str, progress: float, message: str)
     """Update the status of a task"""
     with status_lock:
         if task_id in task_status:
+            logging.info(f"Updating task {task_id} status to: {status}, progress: {progress}, message: {message}")
             task_status[task_id].update({
                 "status": status,
                 "progress": progress,
@@ -70,13 +78,17 @@ def update_task_status(task_id: str, status: str, progress: float, message: str)
 def get_task_status(task_id: str) -> Optional[Dict[str, Any]]:
     """Get the current status of a task"""
     with status_lock:
-        return task_status.get(task_id)
+        status = task_status.get(task_id)
+        logging.info(f"Getting task status for {task_id}: {status}")
+        return status
 
 
 def get_task_result(task_id: str) -> Optional[Any]:
     """Get the result of a completed task"""
     with status_lock:
-        return task_results.get(task_id)
+        result = task_results.get(task_id)
+        logging.info(f"Getting task result for {task_id}: {result}")
+        return result
 
 
 def worker():
@@ -85,12 +97,15 @@ def worker():
         try:
             task = task_queue.get()
             if task is None:
+                logging.info("Worker received shutdown signal.")
                 break  # Shutdown signal
 
             task_id = task["id"]
             func = task["func"]
             args = task["args"]
             kwargs = task["kwargs"]
+
+            logging.info(f"Worker started processing task: {task_id}, function: {func.__name__}")
 
             # Update status to running
             update_task_status(task_id, "running", 0, "Task started")
@@ -111,18 +126,18 @@ def worker():
                 with status_lock:
                     task_results[task_id] = result
                 update_task_status(task_id, "completed", 100, "Task completed")
+                logging.info(f"Task {task_id} completed successfully.")
 
             except Exception as e:
                 # Handle errors
                 update_task_status(task_id, "failed", 0, f"Error: {str(e)}")
                 # Add logging for debugging
-                print(f"Task {task_id} failed: {e}")
+                logging.error(f"Task {task_id} failed: {e}", exc_info=True)
 
         except Exception as e:
-            print(f"Worker error: {e}")
+            logging.error(f"Worker error: {e}", exc_info=True)
         finally:
             task_queue.task_done()
-
 
 def start_workers(num_workers=2):
     """Start worker threads"""
@@ -131,6 +146,7 @@ def start_workers(num_workers=2):
         t = threading.Thread(target=worker, daemon=True, name=f"worker-{i}")
         t.start()
         workers.append(t)
+        logging.info(f"Started worker thread: {t.name}")
     return workers
 
 
@@ -145,5 +161,8 @@ def cleanup_old_tasks(max_age_hours=24):
                     status.get("updated_at", current_time)
                 if task_age > max_age_hours * 3600:
                     # Remove old tasks
-                    task_status.pop(task_id, None)
-                    task_results.pop(task_id, None)
+                    # Only clean up tasks associated with the current session
+                    if status.get("user_session_id") == st.session_state.get("session_id"):
+                        task_status.pop(task_id, None)
+                        task_results.pop(task_id, None)
+                        logging.info(f"Cleaned up old task: {task_id}")

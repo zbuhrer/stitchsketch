@@ -3,6 +3,8 @@ from ui.pages import upload, reconstruction, segmentation, pattern
 from src.session import initialize_session
 from src.task_queue import start_workers
 from ui import state
+import shutil
+import os
 
 # Initialize session state and start workers
 
@@ -57,13 +59,15 @@ def main():
     }
 
     # Sidebar navigation
+    MESH_PERSISTENCE_DIR = "persistent_meshes"
+
     with st.sidebar:
         st.header("Navigation")
         try:
             if "selected_page" not in st.session_state:
                 # Load from PageState default
                 st.session_state.selected_page = app_state.current_page
-            selected_page = st.radio("Choose a page", list(pages.keys()), key="selected_page", index=list(
+            st.radio("Choose a page", list(pages.keys()), key="selected_page", index=list(
                 pages.keys()).index(st.session_state.selected_page))
         except Exception as e:
             st.error(f"Navigation setup in the sidebar failed: {e}")
@@ -81,6 +85,37 @@ def main():
         st.error(
             f"Displaying page {st.session_state.selected_page} failed: {e}")
         return
+
+    # Session End Cleanup
+    if st.session_state.get("is_session_end", False):
+        user_session_dir = os.path.join(MESH_PERSISTENCE_DIR, st.session_state.session_id)
+        if os.path.exists(user_session_dir):
+            shutil.rmtree(user_session_dir, ignore_errors=True)
+            print(f"Cleaned up persistent mesh directory: {user_session_dir}")
+        else:
+            print("No persistent mesh directory found for this session.")
+
+        # Clear only specific session state variables related to reconstruction
+        keys_to_clear = [
+            "reconstruction_task_id",
+            "mesh_path",
+            "mesh_id",
+            "colmap_temp_dir",
+            "last_status",
+            "is_session_end"
+        ]
+        for key in keys_to_clear:
+            if key in st.session_state:
+                del st.session_state[key]
+
+        st.stop()  # Stop the Streamlit app after cleanup
+
+    # Add a flag to indicate session end (e.g., when the user closes the browser)
+    # For demonstration, a button is used here.  In a real application,
+    # you would likely use a different mechanism to detect session end.
+    if st.button("End Session and Cleanup"):
+        st.session_state["is_session_end"] = True
+        st.rerun()
 
 
 if __name__ == "__main__":

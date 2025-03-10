@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, Callable
 import logging
 import os
-import tempfile
+# import tempfile <-- Remove tempfile
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,
@@ -43,28 +43,20 @@ def run_colmap(
         COLMAPError: If any COLMAP command fails.
     """
 
-    # Create temporary directory for COLMAP processing
-    with tempfile.TemporaryDirectory() as colmap_temp_dir:
-        colmap_temp_path = Path(colmap_temp_dir)
-
-        # Use the temporary directory for the database and sparse reconstruction
-        database_path = str(colmap_temp_path / "colmap.db")
-        sparse_dir = str(colmap_temp_path / "sparse")
-
-        # Create sparse directory if it doesn't exist
-        os.makedirs(sparse_dir, exist_ok=True)
-
+    try:
         # Feature extraction settings
-        feature_extractor_args = ["--ImageReader.camera_model", camera_model]
-        if feature_type == "sift":
-            pass  # Use default SIFT settings
-        elif feature_type == "orb":
-            feature_extractor_args += ["--SiftExtraction.use_gpu", "0",  # Disable GPU for more consistent operation
-                                    "--SiftExtraction.num_octaves", "3",
-                                    "--SiftExtraction.first_octave", "0",
-                                    "--SiftExtraction.peak_threshold", "0.01",
-                                    "--SiftExtraction.edge_threshold", "10"]
-        else:
+        feature_config = {
+            "sift": [],
+            "orb": ["--SiftExtraction.use_gpu", "0",  # Disable GPU for more consistent operation
+                    "--SiftExtraction.num_octaves", "3",
+                    "--SiftExtraction.first_octave", "0",
+                    "--SiftExtraction.peak_threshold", "0.01",
+                    "--SiftExtraction.edge_threshold", "10"]
+        }
+
+        feature_extractor_args = ["--ImageReader.camera_model", camera_model] + feature_config.get(feature_type, [])
+
+        if feature_type not in feature_config:
             raise ValueError(f"Unsupported feature type: {feature_type}")
 
         # Feature matching settings
@@ -89,6 +81,7 @@ def run_colmap(
                     image_dir,
                     *feature_extractor_args
                 ],
+                10, # Progress weight
             ),
             (
                 "Vocabulary tree matching" if vocab_tree_path else "Sequential matching",
@@ -99,6 +92,7 @@ def run_colmap(
                     database_path,
                     *feature_matcher_args
                 ],
+                30, # Progress weight
             ),
             (
                 "Map creation",
@@ -112,6 +106,7 @@ def run_colmap(
                     "--output_path",
                     sparse_dir,
                 ],
+                50, # Progress weight
             ),
             (
                 "Model to ply",
@@ -125,23 +120,46 @@ def run_colmap(
                     "--output_type",
                     "PLY"
                 ],
+                10, # Progress weight
             ),
         ]
 
+        completed_weight = 0
+
         # Execute COLMAP commands
-        for name, command in commands:
+        for name, command, weight in commands:
             logging.info(f"Running COLMAP command: {name}")
             logging.info(f"Command: {' '.join(command)}")  # Log the full command
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
-                logging.error(result.stderr)  # Log standard error
+
+            if progress_callback:
+                progress_callback(completed_weight, f"Running {name}...")
+
+            try:
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    check=True # Raise exception on non-zero exit code
+                )
+                if result.returncode != 0:
+                    logging.error(result.stderr)  # Log standard error
+                    raise COLMAPError(
+                        f"COLMAP command '{name}' failed with return code {result.returncode}: {result.stderr}")
+                logging.info(result.stdout)  # Log standard output
+                completed_weight += weight
+
+                if progress_callback:
+                    progress_callback(completed_weight, f"Completed {name}.")
+
+            except subprocess.CalledProcessError as e:
+                logging.error(e.stderr)  # Log standard error
                 raise COLMAPError(
-                    f"COLMAP command '{name}' failed with return code {result.returncode}: {result.stderr}")
-            logging.info(result.stdout)  # Log standard output
+                    f"COLMAP command '{name}' failed with return code {e.returncode}: {e.stderr}") from e
+
+    except Exception as e:
+        # Provide a default value for 'name' in case the loop didn't run
+        # name = "unknown COLMAP command"  <--- Removed line that wasn't needed
+        raise COLMAPError(f"An unexpected error occurred: {e}") from e
 
 
 def create_empty_colmap_database(database_path: str) -> None:
