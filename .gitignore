@@ -169,7 +169,6 @@ scans
 .old*
 .aider*
 *venv*
-requirements.txt
 .postgres_data
 
 
